@@ -725,8 +725,8 @@
             <input type="text" id="projectName" class="calc-input" placeholder="Enter project name">
           </div>
           <div class="field-group">
-            <label class="field-label">Number <span class="override-note">(optional)</span></label>
-            <input type="text" id="projectNumber" class="calc-input" placeholder="Optional">
+            <label class="field-label">Project No. <span class="override-note">(optional)</span></label>
+            <input type="text" id="projectNumber" class="calc-input" placeholder="">
           </div>
           <div class="field-group">
             <label class="field-label">Sales Rep <span class="req">*</span></label>
@@ -740,7 +740,7 @@
 
       <!-- Proposal Financials -->
       <div class="card">
-        <div class="card-title">Proposal Financials</div>
+        <div class="card-title">Proposal Numbers (from proposal software)</div>
         <div class="grid-4">
           <div class="field-group">
             <label class="field-label">Equipment $</label>
@@ -753,7 +753,7 @@
               oninput="calculate()" onblur="fmtCurrInput(this)">
           </div>
           <div class="field-group">
-            <label class="field-label">Labor $ <span class="override-note">(from proposal software)</span></label>
+            <label class="field-label">Labor $</label>
             <input type="text" id="laborDollars" class="calc-input" placeholder="0.00"
               oninput="calculate()" onblur="fmtCurrInput(this)">
           </div>
@@ -813,14 +813,14 @@
 
         <!-- Table 1 -->
         <div class="card">
-          <div class="card-title">Table 1 — Available Install Hours</div>
+          <div class="card-title">Available Install Hours</div>
           <table class="calc-table">
-            <tr><td>PM $</td>                  <td id="o_pmDollars">—</td></tr>
-            <tr><td>Design $</td>              <td id="o_designDollars">—</td></tr>
-            <tr><td>Install Labor $</td>       <td id="o_installLaborDollars">—</td></tr>
-            <tr><td>Install Hours</td>         <td id="o_installHours">—</td></tr>
+            <tr><td>PM $</td>                       <td id="o_pmDollars">—</td></tr>
+            <tr><td>Design $</td>                   <td id="o_designDollars">—</td></tr>
+            <tr><td>Install Labor $</td>            <td id="o_installLaborDollars">—</td></tr>
+            <tr><td>Standard Install Hours</td>     <td id="o_installHours">—</td></tr>
             <tr class="total-row">
-              <td>Available Install Hours</td>
+              <td>Project Install Hours</td>
               <td id="o_availableInstallHours">—</td>
             </tr>
           </table>
@@ -828,7 +828,7 @@
 
         <!-- Table 2 -->
         <div class="card">
-          <div class="card-title">Table 2 — Proposal Labor $ / Proposed Install Hours</div>
+          <div class="card-title">Customer Proposal Labor $ / Install Hours</div>
 
           <div class="field-group" style="margin-bottom:16px">
             <label class="field-label">
@@ -840,11 +840,12 @@
           </div>
 
           <table class="calc-table">
-            <tr><td>Total Material $</td>           <td id="o_totalMaterial">—</td></tr>
-            <tr><td>Recommended Labor $</td>         <td id="o_recommendedLabor">—</td></tr>
-            <tr><td>Labor $ for Proposal</td>        <td id="o_laborForProposal">—</td></tr>
-            <tr><td>PM Hours</td>                    <td id="o_pmHours">—</td></tr>
-            <tr><td>Design Hours</td>                <td id="o_designHours">—</td></tr>
+            <tr><td>Total Equip $</td>                   <td id="o_equipTotal">—</td></tr>
+            <tr><td>Total Parts $</td>                   <td id="o_partsTotal">—</td></tr>
+            <tr><td>Target Labor $</td>                  <td id="o_recommendedLabor">—</td></tr>
+            <tr><td>Proposal Total $ (exc. taxes)</td>   <td id="o_proposalTotal">—</td></tr>
+            <tr><td>PM Hours</td>                        <td id="o_pmHours">—</td></tr>
+            <tr><td>Design Hours</td>                    <td id="o_designHours">—</td></tr>
             <tr class="total-row">
               <td>Proposed Install Hours</td>
               <td id="o_proposedInstallHours">—</td>
@@ -913,8 +914,8 @@
             <span class="filter-label">Labor Mix Status</span>
             <select id="filterLaborMix" onchange="renderDashboard()">
               <option value="">All</option>
-              <option>Strong</option>
-              <option>At Risk</option>
+              <option>Good</option>
+              <option>Pass</option>
               <option>Fail</option>
             </select>
           </div>
@@ -1128,9 +1129,9 @@ function fmtDate(d) {
   return mo[parseInt(p[1],10)-1] + ' ' + parseInt(p[2],10) + ', ' + p[0];
 }
 
-function laborMixStatus(mix) {
-  if (mix >= 0.38) return 'Strong';
-  if (mix >= 0.35) return 'At Risk';
+function laborMixStatus(mix, targetMix) {
+  if (mix >= targetMix + 0.03) return 'Good';
+  if (mix >= targetMix)        return 'Pass';
   return 'Fail';
 }
 
@@ -1141,7 +1142,9 @@ function efficiencyStatus(eff) {
 }
 
 function badgeHTML(status) {
-  var cls = status === 'Strong' ? 'badge-strong' : status === 'At Risk' ? 'badge-at-risk' : 'badge-fail';
+  var cls = (status === 'Good'  || status === 'Strong')   ? 'badge-strong'
+          : (status === 'Pass'  || status === 'At Risk')  ? 'badge-at-risk'
+          : 'badge-fail';
   return '<span class="badge ' + cls + '">' + esc(status) + '</span>';
 }
 
@@ -1351,40 +1354,50 @@ function runCalc(i) {
   var pmBase  = basisValue(i.pmBasis,  i.eq, i.parts, i.labor);
   var desBase = basisValue(i.desBasis, i.eq, i.parts, i.labor);
 
-  var pmDollars      = i.pmPct  * pmBase;
-  var desDollars     = i.desPct * desBase;
+  var pmDollars           = i.pmPct  * pmBase;
+  var desDollars          = i.desPct * desBase;
   var installLaborDollars = i.labor - pmDollars - desDollars;
-  var totalMaterial  = i.eq + i.parts;
+  var totalMaterial       = i.eq + i.parts;
+  var overrideActive      = !isNaN(i.override) && i.override > 0;
+
+  // Dollar calculations don't need billable rate
+  var recommendedLabor  = (i.targetMix * totalMaterial) / (1 - i.targetMix);
+  var laborForProposal  = overrideActive ? i.override : recommendedLabor;
+  var proposalTotal     = i.eq + i.parts + laborForProposal;
+  var actualLaborMixPct = totalMaterial > 0
+    ? laborForProposal / (totalMaterial + laborForProposal)
+    : null;
+  var laborMixSt = actualLaborMixPct != null
+    ? laborMixStatus(actualLaborMixPct, i.targetMix)
+    : null;
 
   var r = {
-    pmDollars:            pmDollars,
-    desDollars:           desDollars,
-    installLaborDollars:  installLaborDollars,
-    installHours:         null,
+    pmDollars:             pmDollars,
+    desDollars:            desDollars,
+    installLaborDollars:   installLaborDollars,
+    installHours:          null,
     availableInstallHours: null,
-    totalMaterial:        totalMaterial,
-    recommendedLabor:     null,
-    laborForProposal:     null,
-    pmHours:              null,
-    desHours:             null,
-    proposedInstallHours: null,
-    actualLaborMixPct:    null,
-    laborMixSt:           null,
-    overrideActive:       !isNaN(i.override) && i.override > 0,
-    upsideDown:           false
+    totalMaterial:         totalMaterial,
+    recommendedLabor:      recommendedLabor,
+    laborForProposal:      laborForProposal,
+    proposalTotal:         proposalTotal,
+    pmHours:               null,
+    desHours:              null,
+    proposedInstallHours:  null,
+    actualLaborMixPct:     actualLaborMixPct,
+    laborMixSt:            laborMixSt,
+    overrideActive:        overrideActive,
+    upsideDown:            false
   };
 
   if (!isNaN(i.rate) && i.rate > 0) {
     r.installHours          = installLaborDollars / i.rate;
     r.availableInstallHours = Math.round(r.installHours * (1 + i.indirect) * 2) / 2;
-    r.recommendedLabor      = (i.targetMix * totalMaterial) / (1 - i.targetMix);
-    r.laborForProposal      = r.overrideActive ? i.override : r.recommendedLabor;
     r.pmHours               = pmDollars  / i.rate;
     r.desHours              = desDollars / i.rate;
-    r.proposedInstallHours  = (r.laborForProposal / i.rate) - r.pmHours - r.desHours;
-    r.actualLaborMixPct     = r.laborForProposal / (totalMaterial + r.laborForProposal);
-    r.laborMixSt            = laborMixStatus(r.actualLaborMixPct);
-    r.upsideDown            = (r.actualLaborMixPct >= i.targetMix) &&
+    r.proposedInstallHours  = (laborForProposal / i.rate) - r.pmHours - r.desHours;
+    r.upsideDown            = actualLaborMixPct != null &&
+                              (actualLaborMixPct >= i.targetMix) &&
                               (r.proposedInstallHours < r.availableInstallHours);
   }
 
@@ -1403,9 +1416,10 @@ function calculate() {
   setText('o_availableInstallHours',r.availableInstallHours != null ? fmtNum(r.availableInstallHours, 1) : '—');
 
   // Table 2
-  setText('o_totalMaterial',        fmtDollar(r.totalMaterial));
-  setText('o_recommendedLabor',     r.recommendedLabor != null ? fmtDollar(r.recommendedLabor) : '—');
-  setText('o_laborForProposal',     r.laborForProposal != null ? fmtDollar(r.laborForProposal) : '—');
+  setText('o_equipTotal',           fmtDollar(i.eq));
+  setText('o_partsTotal',           fmtDollar(i.parts));
+  setText('o_recommendedLabor',     fmtDollar(r.recommendedLabor));
+  setText('o_proposalTotal',        fmtDollar(r.proposalTotal));
   setText('o_pmHours',              r.pmHours  != null ? fmtNum(r.pmHours, 1)  : '—');
   setText('o_designHours',          r.desHours != null ? fmtNum(r.desHours, 1) : '—');
   setText('o_proposedInstallHours', r.proposedInstallHours != null ? fmtNum(r.proposedInstallHours, 1) : '—');
