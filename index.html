@@ -342,6 +342,10 @@
     .calc-table tr.total-row td:first-child { color: var(--text); }
     .calc-table tr.total-row td:last-child   { color: var(--text); }
 
+    /* Muted rows — very light grey, used when a value is superseded */
+    .calc-table tr.row-muted td:first-child,
+    .calc-table tr.row-muted td:last-child { color: #cdd3e8 !important; font-weight: 400; }
+
     /* ══════════════════════════════
        BADGES
     ══════════════════════════════ */
@@ -840,11 +844,13 @@
           </div>
 
           <table class="calc-table">
-            <tr><td>Total Equip $</td>                   <td id="o_equipTotal">—</td></tr>
-            <tr><td>Total Parts $</td>                   <td id="o_partsTotal">—</td></tr>
-            <tr><td>Target Labor $</td>                  <td id="o_recommendedLabor">—</td></tr>
-            <tr><td>Proposal Total $ (exc. taxes)</td>   <td id="o_proposalTotal">—</td></tr>
-            <tr><td>PM Hours</td>                        <td id="o_pmHours">—</td></tr>
+            <tr><td>Total Equip $</td>                              <td id="o_equipTotal">—</td></tr>
+            <tr><td>Total Parts $</td>                             <td id="o_partsTotal">—</td></tr>
+            <tr><td>Target Labor $</td>                            <td id="o_recommendedLabor">—</td></tr>
+            <tr id="tr_overrideLabor"><td>Override Labor $</td>    <td id="o_overrideLabor">—</td></tr>
+            <tr id="tr_proposalTotal"><td>Proposal Total $ (exc. taxes)</td>          <td id="o_proposalTotal">—</td></tr>
+            <tr id="tr_overrideProposalTotal"><td>Override Proposal Total (exc. taxes)</td> <td id="o_overrideProposalTotal">—</td></tr>
+            <tr><td>PM Hours</td>                                  <td id="o_pmHours">—</td></tr>
             <tr><td>Design Hours</td>                    <td id="o_designHours">—</td></tr>
             <tr class="total-row">
               <td>Proposed Install Hours</td>
@@ -1363,7 +1369,8 @@ function runCalc(i) {
   // Dollar calculations don't need billable rate
   var recommendedLabor  = (i.targetMix * totalMaterial) / (1 - i.targetMix);
   var laborForProposal  = overrideActive ? i.override : recommendedLabor;
-  var proposalTotal     = i.eq + i.parts + laborForProposal;
+  var proposalTotal         = i.eq + i.parts + recommendedLabor;
+  var overrideProposalTotal = overrideActive ? (i.eq + i.parts + i.override) : null;
   var actualLaborMixPct = totalMaterial > 0
     ? laborForProposal / (totalMaterial + laborForProposal)
     : null;
@@ -1380,7 +1387,8 @@ function runCalc(i) {
     totalMaterial:         totalMaterial,
     recommendedLabor:      recommendedLabor,
     laborForProposal:      laborForProposal,
-    proposalTotal:         proposalTotal,
+    proposalTotal:             proposalTotal,
+    overrideProposalTotal:     overrideProposalTotal,
     pmHours:               null,
     desHours:              null,
     proposedInstallHours:  null,
@@ -1421,10 +1429,26 @@ function calculate() {
   setText('o_equipTotal',           fmtDollar(i.eq));
   setText('o_partsTotal',           fmtDollar(i.parts));
   setText('o_recommendedLabor',     fmtDollar(r.recommendedLabor));
+  setText('o_overrideLabor',        r.overrideActive ? fmtDollar(i.override) : '—');
   setText('o_proposalTotal',        fmtDollar(r.proposalTotal));
+  setText('o_overrideProposalTotal',r.overrideActive ? fmtDollar(r.overrideProposalTotal) : '—');
   setText('o_pmHours',              r.pmHours  != null ? fmtNum(r.pmHours, 1)  : '—');
   setText('o_designHours',          r.desHours != null ? fmtNum(r.desHours, 1) : '—');
   setText('o_proposedInstallHours', r.proposedInstallHours != null ? fmtNum(r.proposedInstallHours, 1) : '—');
+
+  // Mute / un-mute override rows vs. proposal total row based on whether override is active
+  var trOvLabor  = document.getElementById('tr_overrideLabor');
+  var trPropTot  = document.getElementById('tr_proposalTotal');
+  var trOvTot    = document.getElementById('tr_overrideProposalTotal');
+  if (r.overrideActive) {
+    trOvLabor.classList.remove('row-muted');
+    trOvTot.classList.remove('row-muted');
+    trPropTot.classList.add('row-muted');
+  } else {
+    trOvLabor.classList.add('row-muted');
+    trOvTot.classList.add('row-muted');
+    trPropTot.classList.remove('row-muted');
+  }
 
   // Labor mix status row (only when override active)
   var statusRow = document.getElementById('laborMixStatusRow');
