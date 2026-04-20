@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integration Bid Checker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    /* ── Variables ── */
+    :root {
+      --bg:          #f4f6fb;
+      --surface:     #ffffff;
+      --surface2:    #edf0f8;
+      --border:      #d4daf0;
+      --accent:      #6687e1;
+      --accent-dim:  #4a6abf;
+      --text:        #1a1f36;
+      --text-muted:  #6b7590;
+      --danger:      #e05555;
+      --success:     #16a34a;
+      --warning-bg:  #fffbeb;
+      --warning-bd:  #fcd34d;
+      --warning-tx:  #78350f;
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: 'Geist', sans-serif; }
+
+    /* ── Body ── */
+    body {
+      font-family: 'Geist', sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      background-color: var(--bg);
+      background-image: radial-gradient(circle, rgba(102,135,225,0.07) 1px, transparent 1px);
+      background-size: 28px 28px;
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+
+    /* ── Container ── */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 24px 48px;
+    }
+
+    /* ══════════════════════════════
+       LOGIN SCREEN
+    ══════════════════════════════ */
+    #loginScreen {
+      position: fixed;
+      inset: 0;
+      background-color: var(--bg);
+      background-image: radial-gradient(circle, rgba(102,135,225,0.07) 1px, transparent 1px);
+      background-size: 28px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 4px 24px rgba(102,135,225,0.1);
+    }
+
+    .login-card h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .login-card .login-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+
+    .login-error {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    /* ══════════════════════════════
+       HEADER
+    ══════════════════════════════ */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 56px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 0; }
+
+    .app-wordmark {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-dim);
+      letter-spacing: -0.01em;
+      padding-right: 24px;
+      border-right: 1px solid var(--border);
+      margin-right: 4px;
+    }
+
+    .nav-tabs { display: flex; }
+
+    .nav-tab {
+      padding: 0 20px;
+      height: 56px;
+      line-height: 56px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .nav-tab:hover { color: var(--text); }
+    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .header-right { display: flex; align-items: center; gap: 12px; }
+
+    .user-email {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ══════════════════════════════
+       LOADING OVERLAY
+    ══════════════════════════════ */
+    #loadingOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(244,246,251,0.85);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ══════════════════════════════
+       CARDS
+    ══════════════════════════════ */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 18px;
+    }
+
+    /* ══════════════════════════════
+       FORM FIELDS
+    ══════════════════════════════ */
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .field-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .field-label .req { color: var(--accent); margin-left: 2px; }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="password"],
+    input[type="date"],
+    select {
+      width: 100%;
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: 'Geist', sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      background: var(--surface);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(102,135,225,0.12);
+    }
+
+    /* Editable calculator inputs — subtle blue tint */
+    .calc-input { background: #eef2fb; }
+    .calc-input:focus { background: #e8edf9; }
+
+    select.calc-input {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7590' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7590' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    /* ── Grids ── */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+    /* ══════════════════════════════
+       BUTTONS
+    ══════════════════════════════ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 38px;
+      padding: 0 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary   { background: var(--accent);  color: #fff; border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+
+    .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--surface2); }
+
+    .btn-danger    { background: var(--danger);  color: #fff; border-color: var(--danger); }
+    .btn-danger:hover { background: #c04040; border-color: #c04040; }
+
+    .btn-sm { height: 32px; padding: 0 14px; font-size: 13px; }
+
+    .btn-delete {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 13px;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+
+    .btn-delete:hover {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: var(--danger);
+    }
+
+    /* ══════════════════════════════
+       CALC OUTPUT TABLES
+    ══════════════════════════════ */
+    .calc-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .calc-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--surface2);
+      font-size: 14px;
+    }
+
+    .calc-table tr:last-child td { border-bottom: none; }
+
+    .calc-table td:first-child { color: var(--text-muted); }
+
+    .calc-table td:last-child {
+      text-align: right;
+      font-weight: 600;
+      color: var(--accent-dim);
+    }
+
+    .calc-table tr.total-row { background: var(--surface2); }
+
+    .calc-table tr.total-row td {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .calc-table tr.total-row td:first-child { color: var(--text); }
+    .calc-table tr.total-row td:last-child   { color: var(--text); }
+
+    /* ══════════════════════════════
+       BADGES
+    ══════════════════════════════ */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .badge-strong  { background: #dcfce7; color: #15803d; }
+    .badge-at-risk { background: #fef9c3; color: #a16207; }
+    .badge-fail    { background: #fee2e2; color: #b91c1c; }
+
+    /* ══════════════════════════════
+       STATUS ROW (below Table 2)
+    ══════════════════════════════ */
+    .status-row {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--surface2);
+    }
+
+    .status-row-label { font-size: 13px; color: var(--text-muted); }
+
+    .status-row-value {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    /* ══════════════════════════════
+       WARNING BOX
+    ══════════════════════════════ */
+    .warning-box {
+      display: none;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-bd);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: var(--warning-tx);
+      line-height: 1.5;
+    }
+
+    .warning-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ══════════════════════════════
+       MODALS
+    ══════════════════════════════ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(26,31,54,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s;
+    }
+
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 32px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 12px 48px rgba(26,31,54,0.18);
+      transform: translateY(4px);
+      transition: transform 0.18s;
+    }
+
+    .modal-overlay.show .modal { transform: translateY(0); }
+
+    .modal h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .modal p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+
+    .field-error {
+      display: none;
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 4px;
+    }
+
+    /* ══════════════════════════════
+       DASHBOARD — METRICS
+    ══════════════════════════════ */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px 24px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--accent-dim);
+      letter-spacing: -0.02em;
+    }
+
+    /* ══════════════════════════════
+       DASHBOARD — FILTERS
+    ══════════════════════════════ */
+    .filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .filter-group { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+
+    .filter-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .filter-group select,
+    .filter-group input[type="date"] {
+      height: 34px;
+      font-size: 13px;
+      padding: 0 10px;
+    }
+
+    .filter-group select {
+      padding-right: 28px;
+    }
+
+    .highlight-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 34px;
+      padding: 0 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+      white-space: nowrap;
+      align-self: flex-end;
+    }
+
+    .highlight-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    .highlight-toggle.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .clear-filters-btn {
+      align-self: flex-end;
+      height: 34px;
+      padding: 0 14px;
+      font-size: 13px;
+    }
+
+    /* ══════════════════════════════
+       DASHBOARD — TABLE
+    ══════════════════════════════ */
+    .dash-table-wrap { overflow-x: auto; }
+
+    .dash-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .dash-table th {
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+      background: var(--surface);
+    }
+
+    .dash-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--surface2);
+      white-space: nowrap;
+      vertical-align: middle;
+      cursor: pointer;
+    }
+
+    .dash-table tbody tr:hover td { background: var(--surface2); }
+
+    .dash-table td:last-child { cursor: default; }
+
+    /* Row highlights */
+    .row-top    td { background: #f0fdf4 !important; }
+    .row-bottom td { background: #fef2f2 !important; }
+    .row-top:hover    td { background: #dcfce7 !important; }
+    .row-bottom:hover td { background: #fee2e2 !important; }
+
+    /* Empty state */
+    .dash-empty {
+      padding: 56px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ══════════════════════════════
+       EFFICIENCY PREVIEW
+    ══════════════════════════════ */
+    .eff-preview {
+      display: none;
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-top: 14px;
+    }
+
+    .eff-preview-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .eff-preview-label { font-size: 13px; color: var(--text-muted); }
+
+    .eff-preview-val {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+
+    /* ══════════════════════════════
+       UTILITIES
+    ══════════════════════════════ */
+    .section-content { padding-top: 4px; }
+
+    .action-bar {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-bottom: 40px;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    .override-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    /* ══════════════════════════════
+       PRINT
+    ══════════════════════════════ */
+    @media print {
+      .header, .action-bar, .modal-overlay, #loadingOverlay,
+      .nav-tabs, .header-right, button { display: none !important; }
+      body { background: #fff; }
+      .card { box-shadow: none; border: 1px solid #ccc; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     LOGIN SCREEN
+════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>Integration Bid Checker</h1>
+    <p class="login-subtitle">Sign in to continue</p>
+    <div class="field-group">
+      <label class="field-label">Email</label>
+      <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+    </div>
+    <div class="field-group" style="margin-top:12px">
+      <label class="field-label">Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div id="loginError" class="login-error"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:20px" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     APP CONTAINER
+════════════════════════════════════════ -->
+<div id="appContainer" style="display:none">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <span class="app-wordmark">Bid Checker</span>
+      <nav class="nav-tabs">
+        <button class="nav-tab active" id="tabCalculator" onclick="switchTab('calculator')">Calculator</button>
+        <button class="nav-tab"        id="tabDashboard"  onclick="switchTab('dashboard')">Dashboard</button>
+      </nav>
+    </div>
+    <div class="header-right">
+      <span class="user-email" id="userEmailDisplay"></span>
+      <button class="btn btn-secondary btn-sm" onclick="doSignOut()">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Loading -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <span style="font-size:13px;color:var(--text-muted)">Loading…</span>
+  </div>
+
+  <!-- ──────────────────────────────
+       CALCULATOR SECTION
+  ────────────────────────────── -->
+  <section id="calculatorSection" class="section-content">
+    <div class="container">
+
+      <!-- Project Details -->
+      <div class="card">
+        <div class="card-title">Project Details</div>
+        <div class="grid-3">
+          <div class="field-group">
+            <label class="field-label">Project Name <span class="req">*</span></label>
+            <input type="text" id="projectName" class="calc-input" placeholder="Enter project name">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Number <span class="override-note">(optional)</span></label>
+            <input type="text" id="projectNumber" class="calc-input" placeholder="Optional">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Sales Rep <span class="req">*</span></label>
+            <select id="salesRepSelect" class="calc-input" onchange="handleRepChange(this)">
+              <option value="">— Select —</option>
+              <option value="__add__">+ Add new rep…</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Proposal Financials -->
+      <div class="card">
+        <div class="card-title">Proposal Financials</div>
+        <div class="grid-4">
+          <div class="field-group">
+            <label class="field-label">Equipment $</label>
+            <input type="text" id="equipmentDollars" class="calc-input" placeholder="0.00"
+              oninput="calculate()" onblur="fmtCurrInput(this)">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Parts $</label>
+            <input type="text" id="partsDollars" class="calc-input" placeholder="0.00"
+              oninput="calculate()" onblur="fmtCurrInput(this)">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Labor $ <span class="override-note">(from proposal software)</span></label>
+            <input type="text" id="laborDollars" class="calc-input" placeholder="0.00"
+              oninput="calculate()" onblur="fmtCurrInput(this)">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Billable Rate $/hr <span class="req">*</span></label>
+            <input type="text" id="billableRate" class="calc-input" placeholder="e.g. 150"
+              oninput="calculate()" onblur="fmtCurrInput(this)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuration -->
+      <div class="card">
+        <div class="card-title">Configuration</div>
+        <div class="grid-2" style="margin-bottom:14px">
+          <div class="field-group">
+            <label class="field-label">Target Labor Mix %</label>
+            <input type="number" id="targetLaborMix" class="calc-input" value="35" min="0" max="100" step="0.1" oninput="calculate()">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Indirect Labor %</label>
+            <input type="number" id="indirectLabor" class="calc-input" value="25" min="0" max="100" step="0.1" oninput="calculate()">
+          </div>
+        </div>
+        <div class="grid-2" style="margin-bottom:14px">
+          <div class="field-group">
+            <label class="field-label">PM %</label>
+            <input type="number" id="pmPercent" class="calc-input" value="3.0" min="0" max="100" step="0.1" oninput="calculate()">
+          </div>
+          <div class="field-group">
+            <label class="field-label">PM Labor Basis</label>
+            <select id="pmBasis" class="calc-input" onchange="calculate()">
+              <option value="equipment">% of Equipment</option>
+              <option value="equipmentParts">% of Equipment + Parts</option>
+              <option value="proposalTotal">% of Proposal Total</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field-group">
+            <label class="field-label">Design %</label>
+            <input type="number" id="designPercent" class="calc-input" value="2.5" min="0" max="100" step="0.1" oninput="calculate()">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Design Labor Basis</label>
+            <select id="designBasis" class="calc-input" onchange="calculate()">
+              <option value="equipment">% of Equipment</option>
+              <option value="equipmentParts">% of Equipment + Parts</option>
+              <option value="proposalTotal">% of Proposal Total</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Output Tables -->
+      <div class="grid-2">
+
+        <!-- Table 1 -->
+        <div class="card">
+          <div class="card-title">Table 1 — Available Install Hours</div>
+          <table class="calc-table">
+            <tr><td>PM $</td>                  <td id="o_pmDollars">—</td></tr>
+            <tr><td>Design $</td>              <td id="o_designDollars">—</td></tr>
+            <tr><td>Install Labor $</td>       <td id="o_installLaborDollars">—</td></tr>
+            <tr><td>Install Hours</td>         <td id="o_installHours">—</td></tr>
+            <tr class="total-row">
+              <td>Available Install Hours</td>
+              <td id="o_availableInstallHours">—</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Table 2 -->
+        <div class="card">
+          <div class="card-title">Table 2 — Proposal Labor $ / Proposed Install Hours</div>
+
+          <div class="field-group" style="margin-bottom:16px">
+            <label class="field-label">
+              Labor $ Override
+              <span class="override-note">(optional — leave blank to use recommended)</span>
+            </label>
+            <input type="text" id="laborOverride" class="calc-input" placeholder="0.00"
+              oninput="calculate()" onblur="fmtCurrInput(this)">
+          </div>
+
+          <table class="calc-table">
+            <tr><td>Total Material $</td>           <td id="o_totalMaterial">—</td></tr>
+            <tr><td>Recommended Labor $</td>         <td id="o_recommendedLabor">—</td></tr>
+            <tr><td>Labor $ for Proposal</td>        <td id="o_laborForProposal">—</td></tr>
+            <tr><td>PM Hours</td>                    <td id="o_pmHours">—</td></tr>
+            <tr><td>Design Hours</td>                <td id="o_designHours">—</td></tr>
+            <tr class="total-row">
+              <td>Proposed Install Hours</td>
+              <td id="o_proposedInstallHours">—</td>
+            </tr>
+          </table>
+
+          <!-- Actual Labor Mix % — shown only when override is active -->
+          <div class="status-row" id="laborMixStatusRow">
+            <span class="status-row-label">Actual Labor Mix %</span>
+            <div class="status-row-value">
+              <span id="o_actualLaborMix"></span>
+              <span id="o_laborMixBadge"></span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /grid-2 -->
+
+      <!-- Upside Down Warning -->
+      <div class="warning-box" id="upsideDownWarning">
+        <span class="warning-icon">⚠️</span>
+        <div>
+          <strong>Upside Down</strong> — The labor mix target is met, but Proposed Install Hours are still less than
+          Available Install Hours. Consider increasing the Labor $ for Proposal.
+        </div>
+      </div>
+
+      <!-- Action Bar -->
+      <div class="action-bar">
+        <button class="btn btn-secondary" onclick="confirmReset()">Reset</button>
+        <button class="btn btn-primary" id="saveBidBtn" onclick="saveBid()">Save to Dashboard</button>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ──────────────────────────────
+       DASHBOARD SECTION
+  ────────────────────────────── -->
+  <section id="dashboardSection" class="section-content" style="display:none">
+    <div class="container">
+
+      <!-- Metrics -->
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Avg Install Efficiency</div>
+          <div class="metric-value" id="metricAvgEff">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Avg Actual Labor Mix %</div>
+          <div class="metric-value" id="metricAvgMix">—</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="card" style="margin-bottom:16px;padding:16px 20px">
+        <div class="filters-row">
+          <div class="filter-group">
+            <span class="filter-label">Sales Rep</span>
+            <select id="filterRep" onchange="renderDashboard()">
+              <option value="">All Reps</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Labor Mix Status</span>
+            <select id="filterLaborMix" onchange="renderDashboard()">
+              <option value="">All</option>
+              <option>Strong</option>
+              <option>At Risk</option>
+              <option>Fail</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Efficiency Status</span>
+            <select id="filterEfficiency" onchange="renderDashboard()">
+              <option value="">All</option>
+              <option>Strong</option>
+              <option>At Risk</option>
+              <option>Fail</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Saved From</span>
+            <input type="date" id="filterDateFrom" onchange="renderDashboard()">
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Saved To</span>
+            <input type="date" id="filterDateTo" onchange="renderDashboard()">
+          </div>
+          <button id="highlightBtn" class="highlight-toggle" onclick="toggleHighlight()">
+            ◎&nbsp; Highlight Top / Bottom 3
+          </button>
+          <button class="btn btn-secondary clear-filters-btn" onclick="clearFilters()">Clear Filters</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="card" style="padding:0;overflow:hidden;margin-bottom:0">
+        <div class="dash-table-wrap">
+          <table class="dash-table" id="dashTable" style="display:none">
+            <thead id="dashHead"></thead>
+            <tbody id="dashBody"></tbody>
+          </table>
+        </div>
+        <div class="dash-empty" id="dashEmpty">
+          No proposals saved yet.<br>Use the Calculator tab to create and save your first proposal.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div><!-- /appContainer -->
+
+
+<!-- ════════════════════════════════════════
+     MODALS
+════════════════════════════════════════ -->
+
+<!-- Reset Confirm -->
+<div id="resetModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Reset Calculator</h3>
+    <p>This will clear all inputs and return everything to defaults. Any unsaved data will be lost.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('resetModal')">Cancel</button>
+      <button class="btn btn-danger"    onclick="doReset()">Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add New Rep -->
+<div id="addRepModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Add Sales Rep</h3>
+    <div class="field-group">
+      <label class="field-label">Rep Name</label>
+      <input type="text" id="newRepInput" placeholder="Enter name…"
+        oninput="document.getElementById('addRepError').style.display='none'"
+        onkeydown="if(event.key==='Enter') confirmAddRep()">
+      <div class="field-error" id="addRepError"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="cancelAddRep()">Cancel</button>
+      <button class="btn btn-primary"   onclick="confirmAddRep()">Add Rep</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm -->
+<div id="deleteModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Delete Proposal</h3>
+    <p>This will permanently delete all data for <strong id="deleteProjectLabel"></strong>. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="btn btn-danger"    onclick="confirmDeleteBid()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Actual Hours -->
+<div id="actualHoursModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Post-Project Data</h3>
+    <p id="ahProjectLabel" style="font-weight:600;color:var(--text);margin-bottom:16px"></p>
+    <div class="field-group">
+      <label class="field-label">Actual Install Hours</label>
+      <input type="number" id="actualHoursInput" min="0" step="0.5"
+        placeholder="e.g. 120.5" oninput="previewEfficiency()">
+    </div>
+    <div class="eff-preview" id="effPreview">
+      <div class="eff-preview-row">
+        <span class="eff-preview-label">Install Efficiency</span>
+        <div class="eff-preview-val">
+          <span id="prevEffVal"></span>
+          <span id="prevEffBadge"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('actualHoursModal')">Cancel</button>
+      <button class="btn btn-primary"   onclick="saveActualHours()">Update</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     SCRIPT
+════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────
+   FIREBASE — PLACEHOLDER CONFIG
+   Replace with real config before deployment
+───────────────────────────────────────── */
+var firebaseConfig = {
+  apiKey:            "AIzaSyCB8kSNwvQWEjRM5D2Ypb7oLCnr3BQ_jvs",
+  authDomain:        "proposal-checker-4d5de.firebaseapp.com",
+  projectId:         "proposal-checker-4d5de",
+  storageBucket:     "proposal-checker-4d5de.firebasestorage.app",
+  messagingSenderId: "1019231077590",
+  appId:             "1:1019231077590:web:956da3beb8f18bb4ab7577"
+};
+
+/*
+  FIRESTORE SECURITY RULES (deploy once via Firebase Console):
+  ─────────────────────────────────────────────────────────────
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /users/{userId}/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+*/
+
+firebase.initializeApp(firebaseConfig);
+var auth = firebase.auth();
+var db   = firebase.firestore();
+
+/* ─────────────────────────────────────────
+   STATE
+───────────────────────────────────────── */
+var currentUser        = null;
+var bids               = [];       // all bids for this user, desc by saveDate
+var salesReps          = [];       // persisted rep names for this login
+var billableRateDefault = null;    // set from the first saved proposal
+var pendingDeleteId    = null;
+var pendingActualHoursBidId = null;
+var highlightEnabled   = false;
+var activeTab          = 'calculator';
+
+/* ─────────────────────────────────────────
+   UTILITIES
+───────────────────────────────────────── */
+function parseCurr(v) {
+  if (v === '' || v == null) return NaN;
+  var n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? NaN : n;
+}
+
+function fmtDollar(v) {
+  var n = typeof v === 'number' ? v : parseCurr(v);
+  if (isNaN(n) || n == null) return '—';
+  return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function fmtNum(v, dp) {
+  if (v == null || isNaN(v)) return '—';
+  return Number(v).toFixed(dp != null ? dp : 1);
+}
+
+function fmtPct(v, dp) {
+  if (v == null || isNaN(v)) return '—';
+  return (v * 100).toFixed(dp != null ? dp : 1) + '%';
+}
+
+function fmtCurrInput(el) {
+  var n = parseCurr(el.value);
+  if (!isNaN(n) && el.value.trim() !== '') {
+    el.value = n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  var p = String(d).split('-');
+  if (p.length !== 3) return d;
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[parseInt(p[1],10)-1] + ' ' + parseInt(p[2],10) + ', ' + p[0];
+}
+
+function laborMixStatus(mix) {
+  if (mix >= 0.38) return 'Strong';
+  if (mix >= 0.35) return 'At Risk';
+  return 'Fail';
+}
+
+function efficiencyStatus(eff) {
+  if (eff >= 1.0) return 'Strong';
+  if (eff >= 0.9) return 'At Risk';
+  return 'Fail';
+}
+
+function badgeHTML(status) {
+  var cls = status === 'Strong' ? 'badge-strong' : status === 'At Risk' ? 'badge-at-risk' : 'badge-fail';
+  return '<span class="badge ' + cls + '">' + esc(status) + '</span>';
+}
+
+/* ─────────────────────────────────────────
+   AUTH
+───────────────────────────────────────── */
+auth.onAuthStateChanged(function(user) {
+  if (user) {
+    currentUser = user;
+    document.getElementById('userEmailDisplay').textContent = user.email;
+    document.getElementById('loginScreen').style.display    = 'none';
+    document.getElementById('appContainer').style.display   = 'block';
+    loadUserData(user.uid);
+  } else {
+    currentUser = null;
+    document.getElementById('loginScreen').style.display    = 'flex';
+    document.getElementById('appContainer').style.display   = 'none';
+  }
+});
+
+function doLogin() {
+  var email = document.getElementById('loginEmail').value.trim();
+  var pw    = document.getElementById('loginPassword').value;
+  var errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+
+  if (!email || !pw) {
+    errEl.textContent   = 'Please enter your email and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email, pw)
+    .catch(function() {
+      errEl.textContent   = 'Incorrect email or password.';
+      errEl.style.display = 'block';
+    });
+}
+
+function doSignOut() {
+  auth.signOut();
+}
+
+/* ─────────────────────────────────────────
+   DATA LOADING
+───────────────────────────────────────── */
+function loadUserData(uid) {
+  document.getElementById('loadingOverlay').style.display = 'flex';
+
+  db.collection('users').doc(uid).collection('settings').doc('main').get()
+    .then(function(snap) {
+      if (snap.exists) {
+        var d = snap.data();
+        salesReps          = d.salesReps || [];
+        billableRateDefault = (d.billableRateDefault != null) ? d.billableRateDefault : null;
+      }
+      return db.collection('users').doc(uid).collection('bids')
+               .orderBy('saveDate', 'desc').get();
+    })
+    .then(function(qs) {
+      bids = [];
+      qs.forEach(function(doc) {
+        bids.push(Object.assign({ id: doc.id }, doc.data()));
+      });
+      document.getElementById('loadingOverlay').style.display = 'none';
+      initCalculator();
+      renderDashboard();
+    })
+    .catch(function(err) {
+      console.error('loadUserData error:', err);
+      document.getElementById('loadingOverlay').style.display = 'none';
+    });
+}
+
+function saveSettings(cb) {
+  if (!currentUser) return;
+  db.collection('users').doc(currentUser.uid).collection('settings').doc('main')
+    .set({ salesReps: salesReps, billableRateDefault: billableRateDefault })
+    .then(function() { if (cb) cb(); })
+    .catch(function(e) { console.error('saveSettings error:', e); if (cb) cb(); });
+}
+
+/* ─────────────────────────────────────────
+   CALCULATOR — INIT / RESET
+───────────────────────────────────────── */
+function initCalculator() {
+  rebuildRepDropdown(null);
+  prefillBillableRate();
+  calculate();
+}
+
+function prefillBillableRate() {
+  var el = document.getElementById('billableRate');
+  if (billableRateDefault != null) {
+    el.value = billableRateDefault.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  } else {
+    el.value = '';
+  }
+}
+
+function resetCalculator() {
+  document.getElementById('projectName').value    = '';
+  document.getElementById('projectNumber').value  = '';
+  document.getElementById('salesRepSelect').value = '';
+  document.getElementById('equipmentDollars').value = '';
+  document.getElementById('partsDollars').value     = '';
+  document.getElementById('laborDollars').value     = '';
+  document.getElementById('laborOverride').value    = '';
+  document.getElementById('targetLaborMix').value   = '35';
+  document.getElementById('indirectLabor').value    = '25';
+  document.getElementById('pmPercent').value        = '3.0';
+  document.getElementById('designPercent').value    = '2.5';
+  document.getElementById('pmBasis').value          = 'equipment';
+  document.getElementById('designBasis').value      = 'equipment';
+  prefillBillableRate();
+  calculate();
+}
+
+function confirmReset() { openModal('resetModal'); }
+
+function doReset() {
+  closeModal('resetModal');
+  resetCalculator();
+}
+
+/* ─────────────────────────────────────────
+   SALES REP DROPDOWN
+───────────────────────────────────────── */
+function rebuildRepDropdown(selectVal) {
+  var sel = document.getElementById('salesRepSelect');
+  var cur = selectVal !== undefined ? selectVal : sel.value;
+  sel.innerHTML = '<option value="">— Select —</option>';
+  salesReps.forEach(function(r) {
+    var o = document.createElement('option');
+    o.value = r; o.textContent = r;
+    sel.appendChild(o);
+  });
+  var addOpt = document.createElement('option');
+  addOpt.value = '__add__'; addOpt.textContent = '+ Add new rep…';
+  sel.appendChild(addOpt);
+  if (cur && cur !== '__add__') sel.value = cur;
+}
+
+function handleRepChange(sel) {
+  if (sel.value !== '__add__') return;
+  sel.value = '';
+  document.getElementById('newRepInput').value = '';
+  document.getElementById('addRepError').style.display = 'none';
+  openModal('addRepModal');
+  setTimeout(function() { document.getElementById('newRepInput').focus(); }, 120);
+}
+
+function cancelAddRep() {
+  closeModal('addRepModal');
+  document.getElementById('salesRepSelect').value = '';
+}
+
+function confirmAddRep() {
+  var name  = document.getElementById('newRepInput').value.trim();
+  var errEl = document.getElementById('addRepError');
+  if (!name) {
+    errEl.textContent   = 'Please enter a name.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (salesReps.indexOf(name) !== -1) {
+    errEl.textContent   = 'This rep already exists.';
+    errEl.style.display = 'block';
+    return;
+  }
+  salesReps.push(name);
+  salesReps.sort(function(a,b){ return a.localeCompare(b); });
+  saveSettings(function() {
+    rebuildRepDropdown(name);
+    document.getElementById('salesRepSelect').value = name;
+    closeModal('addRepModal');
+  });
+}
+
+/* ─────────────────────────────────────────
+   CALCULATOR — CORE
+───────────────────────────────────────── */
+function getCalcInputs() {
+  return {
+    eq:         parseCurr(document.getElementById('equipmentDollars').value) || 0,
+    parts:      parseCurr(document.getElementById('partsDollars').value)     || 0,
+    labor:      parseCurr(document.getElementById('laborDollars').value)     || 0,
+    rate:       parseCurr(document.getElementById('billableRate').value),
+    override:   parseCurr(document.getElementById('laborOverride').value),
+    targetMix:  parseFloat(document.getElementById('targetLaborMix').value)  / 100,
+    indirect:   parseFloat(document.getElementById('indirectLabor').value)   / 100,
+    pmPct:      parseFloat(document.getElementById('pmPercent').value)       / 100,
+    desPct:     parseFloat(document.getElementById('designPercent').value)   / 100,
+    pmBasis:    document.getElementById('pmBasis').value,
+    desBasis:   document.getElementById('designBasis').value
+  };
+}
+
+function basisValue(key, eq, parts, labor) {
+  if (key === 'equipment')     return eq;
+  if (key === 'equipmentParts') return eq + parts;
+  if (key === 'proposalTotal')  return eq + parts + labor;
+  return eq;
+}
+
+function runCalc(i) {
+  var pmBase  = basisValue(i.pmBasis,  i.eq, i.parts, i.labor);
+  var desBase = basisValue(i.desBasis, i.eq, i.parts, i.labor);
+
+  var pmDollars      = i.pmPct  * pmBase;
+  var desDollars     = i.desPct * desBase;
+  var installLaborDollars = i.labor - pmDollars - desDollars;
+  var totalMaterial  = i.eq + i.parts;
+
+  var r = {
+    pmDollars:            pmDollars,
+    desDollars:           desDollars,
+    installLaborDollars:  installLaborDollars,
+    installHours:         null,
+    availableInstallHours: null,
+    totalMaterial:        totalMaterial,
+    recommendedLabor:     null,
+    laborForProposal:     null,
+    pmHours:              null,
+    desHours:             null,
+    proposedInstallHours: null,
+    actualLaborMixPct:    null,
+    laborMixSt:           null,
+    overrideActive:       !isNaN(i.override) && i.override > 0,
+    upsideDown:           false
+  };
+
+  if (!isNaN(i.rate) && i.rate > 0) {
+    r.installHours          = installLaborDollars / i.rate;
+    r.availableInstallHours = Math.round(r.installHours * (1 + i.indirect) * 2) / 2;
+    r.recommendedLabor      = (i.targetMix * totalMaterial) / (1 - i.targetMix);
+    r.laborForProposal      = r.overrideActive ? i.override : r.recommendedLabor;
+    r.pmHours               = pmDollars  / i.rate;
+    r.desHours              = desDollars / i.rate;
+    r.proposedInstallHours  = (r.laborForProposal / i.rate) - r.pmHours - r.desHours;
+    r.actualLaborMixPct     = r.laborForProposal / (totalMaterial + r.laborForProposal);
+    r.laborMixSt            = laborMixStatus(r.actualLaborMixPct);
+    r.upsideDown            = (r.actualLaborMixPct >= i.targetMix) &&
+                              (r.proposedInstallHours < r.availableInstallHours);
+  }
+
+  return r;
+}
+
+function calculate() {
+  var i = getCalcInputs();
+  var r = runCalc(i);
+
+  // Table 1
+  setText('o_pmDollars',            fmtDollar(r.pmDollars));
+  setText('o_designDollars',        fmtDollar(r.desDollars));
+  setText('o_installLaborDollars',  fmtDollar(r.installLaborDollars));
+  setText('o_installHours',         r.installHours  != null ? fmtNum(r.installHours, 1)  : '—');
+  setText('o_availableInstallHours',r.availableInstallHours != null ? fmtNum(r.availableInstallHours, 1) : '—');
+
+  // Table 2
+  setText('o_totalMaterial',        fmtDollar(r.totalMaterial));
+  setText('o_recommendedLabor',     r.recommendedLabor != null ? fmtDollar(r.recommendedLabor) : '—');
+  setText('o_laborForProposal',     r.laborForProposal != null ? fmtDollar(r.laborForProposal) : '—');
+  setText('o_pmHours',              r.pmHours  != null ? fmtNum(r.pmHours, 1)  : '—');
+  setText('o_designHours',          r.desHours != null ? fmtNum(r.desHours, 1) : '—');
+  setText('o_proposedInstallHours', r.proposedInstallHours != null ? fmtNum(r.proposedInstallHours, 1) : '—');
+
+  // Labor mix status row (only when override active)
+  var statusRow = document.getElementById('laborMixStatusRow');
+  if (r.overrideActive && r.actualLaborMixPct != null) {
+    setText('o_actualLaborMix', fmtPct(r.actualLaborMixPct, 1));
+    document.getElementById('o_laborMixBadge').innerHTML = badgeHTML(r.laborMixSt);
+    statusRow.style.display = 'flex';
+  } else {
+    statusRow.style.display = 'none';
+  }
+
+  // Upside down warning
+  document.getElementById('upsideDownWarning').style.display = r.upsideDown ? 'flex' : 'none';
+}
+
+function setText(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+/* ─────────────────────────────────────────
+   SAVE BID
+───────────────────────────────────────── */
+function saveBid() {
+  var pName  = document.getElementById('projectName').value.trim();
+  var rep    = document.getElementById('salesRepSelect').value;
+  var rate   = parseCurr(document.getElementById('billableRate').value);
+
+  if (!pName) {
+    alert('Project Name is required before saving.');
+    document.getElementById('projectName').focus();
+    return;
+  }
+  if (!rep) {
+    alert('Please select a Sales Rep before saving.');
+    document.getElementById('salesRepSelect').focus();
+    return;
+  }
+  if (isNaN(rate) || rate <= 0) {
+    alert('Billable Rate is required before saving.');
+    document.getElementById('billableRate').focus();
+    return;
+  }
+
+  var inputs = getCalcInputs();
+  var calc   = runCalc(inputs);
+  var today  = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+  var bid = {
+    projectName:          pName,
+    number:               document.getElementById('projectNumber').value.trim(),
+    salesRep:             rep,
+    saveDate:             today,
+    equipmentDollars:     inputs.eq,
+    partsDollars:         inputs.parts,
+    laborDollars:         inputs.labor,
+    billableRate:         rate,
+    laborOverride:        calc.overrideActive ? inputs.override : null,
+    targetLaborMix:       inputs.targetMix,
+    indirectLabor:        inputs.indirect,
+    pmPercent:            inputs.pmPct,
+    designPercent:        inputs.desPct,
+    pmBasis:              inputs.pmBasis,
+    designBasis:          inputs.desBasis,
+    laborForProposal:     calc.laborForProposal,
+    proposedInstallHours: calc.proposedInstallHours,
+    availableInstallHours:calc.availableInstallHours,
+    actualLaborMixPct:    calc.actualLaborMixPct,
+    laborMixStatus:       calc.laborMixSt,
+    actualInstallHours:   null,
+    installEfficiency:    null,
+    efficiencyStatus:     null
+  };
+
+  var docRef = db.collection('users').doc(currentUser.uid).collection('bids').doc();
+  docRef.set(bid)
+    .then(function() {
+      // Insert at front (desc by date)
+      bids.unshift(Object.assign({ id: docRef.id }, bid));
+
+      // First-save billable rate default
+      if (billableRateDefault == null) {
+        billableRateDefault = rate;
+        saveSettings(null);
+      }
+
+      // Add new rep if needed
+      if (rep && salesReps.indexOf(rep) === -1) {
+        salesReps.push(rep);
+        salesReps.sort(function(a,b){ return a.localeCompare(b); });
+        saveSettings(null);
+      }
+
+      // Re-render dashboard filter options
+      rebuildFilterRepOptions();
+
+      // Reset + flash success
+      resetCalculator();
+      flashSaveBtn();
+      renderDashboard();
+    })
+    .catch(function(err) {
+      console.error('saveBid error:', err);
+      alert('Error saving proposal. Please try again.');
+    });
+}
+
+function flashSaveBtn() {
+  var btn = document.getElementById('saveBidBtn');
+  if (!btn) return;
+  var orig = btn.textContent;
+  btn.textContent = '✓ Saved!';
+  btn.style.background   = '#16a34a';
+  btn.style.borderColor  = '#16a34a';
+  setTimeout(function() {
+    btn.textContent = orig;
+    btn.style.background  = '';
+    btn.style.borderColor = '';
+  }, 2200);
+}
+
+/* ─────────────────────────────────────────
+   DASHBOARD — RENDER
+───────────────────────────────────────── */
+function getFilteredBids() {
+  var fRep  = document.getElementById('filterRep').value;
+  var fMix  = document.getElementById('filterLaborMix').value;
+  var fEff  = document.getElementById('filterEfficiency').value;
+  var fFrom = document.getElementById('filterDateFrom').value;
+  var fTo   = document.getElementById('filterDateTo').value;
+
+  return bids.filter(function(b) {
+    if (fRep  && b.salesRep !== fRep)           return false;
+    if (fMix  && b.laborMixStatus !== fMix)     return false;
+    if (fEff  && b.efficiencyStatus !== fEff)   return false;
+    if (fFrom && b.saveDate < fFrom)             return false;
+    if (fTo   && b.saveDate > fTo)               return false;
+    return true;
+  });
+}
+
+function getHighlightedIds(filteredBids) {
+  if (!highlightEnabled) return { top: [], bottom: [] };
+  var withEff = filteredBids.filter(function(b) { return b.installEfficiency != null; });
+  if (withEff.length < 12) return { top: [], bottom: [] };
+  var sorted = withEff.slice().sort(function(a,b) { return b.installEfficiency - a.installEfficiency; });
+  return {
+    top:    sorted.slice(0, 3).map(function(b){ return b.id; }),
+    bottom: sorted.slice(-3).map(function(b){ return b.id; })
+  };
+}
+
+function renderDashboard() {
+  var filtered    = getFilteredBids();
+  var highlighted = getHighlightedIds(filtered);
+  var showNum     = bids.some(function(b){ return b.number && b.number.trim() !== ''; });
+
+  // Metrics (over filtered set)
+  var effVals = filtered.filter(function(b){ return b.installEfficiency != null; })
+                        .map(function(b){ return b.installEfficiency; });
+  var mixVals = filtered.filter(function(b){ return b.actualLaborMixPct != null; })
+                        .map(function(b){ return b.actualLaborMixPct; });
+
+  var avgEff = effVals.length ? effVals.reduce(function(a,v){ return a+v; },0) / effVals.length : null;
+  var avgMix = mixVals.length ? mixVals.reduce(function(a,v){ return a+v; },0) / mixVals.length : null;
+
+  document.getElementById('metricAvgEff').textContent = avgEff != null ? fmtNum(avgEff, 2) : '—';
+  document.getElementById('metricAvgMix').textContent = avgMix != null ? fmtPct(avgMix, 1) : '—';
+
+  rebuildFilterRepOptions();
+
+  var tableEl = document.getElementById('dashTable');
+  var emptyEl = document.getElementById('dashEmpty');
+
+  if (filtered.length === 0) {
+    tableEl.style.display = 'none';
+    emptyEl.style.display = 'block';
+    emptyEl.innerHTML = bids.length === 0
+      ? 'No proposals saved yet.<br>Use the Calculator tab to create and save your first proposal.'
+      : 'No proposals match the current filters.';
+    return;
+  }
+
+  tableEl.style.display = 'table';
+  emptyEl.style.display = 'none';
+
+  // Header
+  var hHTML = '<tr>';
+  hHTML += '<th>Project Name</th>';
+  if (showNum) hHTML += '<th>Number</th>';
+  hHTML += '<th>Sales Rep</th>';
+  hHTML += '<th>Save Date</th>';
+  hHTML += '<th>Equipment $</th>';
+  hHTML += '<th>Parts $</th>';
+  hHTML += '<th>Labor $ for Proposal</th>';
+  hHTML += '<th>Proposed Hrs</th>';
+  hHTML += '<th>Available Hrs</th>';
+  hHTML += '<th>Actual Labor Mix %</th>';
+  hHTML += '<th>Labor Mix</th>';
+  hHTML += '<th>Install Efficiency</th>';
+  hHTML += '<th>Efficiency</th>';
+  hHTML += '<th></th>';
+  hHTML += '</tr>';
+  document.getElementById('dashHead').innerHTML = hHTML;
+
+  // Rows
+  var bHTML = '';
+  filtered.forEach(function(bid) {
+    var isTop    = highlighted.top.indexOf(bid.id)    !== -1;
+    var isBottom = highlighted.bottom.indexOf(bid.id) !== -1;
+    var rowCls   = isTop ? 'row-top' : isBottom ? 'row-bottom' : '';
+
+    bHTML += '<tr class="' + rowCls + '" onclick="openActualHoursModal(\'' + bid.id + '\')">';
+    bHTML += '<td>' + esc(bid.projectName) + '</td>';
+    if (showNum) bHTML += '<td>' + esc(bid.number || '') + '</td>';
+    bHTML += '<td>' + esc(bid.salesRep || '') + '</td>';
+    bHTML += '<td>' + fmtDate(bid.saveDate) + '</td>';
+    bHTML += '<td>' + fmtDollar(bid.equipmentDollars) + '</td>';
+    bHTML += '<td>' + fmtDollar(bid.partsDollars) + '</td>';
+    bHTML += '<td>' + fmtDollar(bid.laborForProposal) + '</td>';
+    bHTML += '<td>' + (bid.proposedInstallHours  != null ? fmtNum(bid.proposedInstallHours, 1)  : '—') + '</td>';
+    bHTML += '<td>' + (bid.availableInstallHours != null ? fmtNum(bid.availableInstallHours, 1) : '—') + '</td>';
+    bHTML += '<td>' + (bid.actualLaborMixPct     != null ? fmtPct(bid.actualLaborMixPct, 1)     : '—') + '</td>';
+    bHTML += '<td>' + (bid.laborMixStatus ? badgeHTML(bid.laborMixStatus) : '—') + '</td>';
+    bHTML += '<td>' + (bid.installEfficiency != null ? fmtNum(bid.installEfficiency, 2) : '—') + '</td>';
+    bHTML += '<td>' + (bid.efficiencyStatus  ? badgeHTML(bid.efficiencyStatus) : '—') + '</td>';
+    bHTML += '<td onclick="event.stopPropagation()">'
+           + '<button class="btn-delete" onclick="promptDeleteBid(\''
+           + bid.id + '\',\'' + esc(bid.projectName) + '\')" title="Delete proposal">✕</button></td>';
+    bHTML += '</tr>';
+  });
+  document.getElementById('dashBody').innerHTML = bHTML;
+}
+
+function rebuildFilterRepOptions() {
+  var sel = document.getElementById('filterRep');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">All Reps</option>';
+  var seen = {};
+  bids.forEach(function(b){ if (b.salesRep) seen[b.salesRep] = true; });
+  Object.keys(seen).sort().forEach(function(r) {
+    var o = document.createElement('option');
+    o.value = r; o.textContent = r;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+}
+
+function clearFilters() {
+  document.getElementById('filterRep').value       = '';
+  document.getElementById('filterLaborMix').value  = '';
+  document.getElementById('filterEfficiency').value = '';
+  document.getElementById('filterDateFrom').value  = '';
+  document.getElementById('filterDateTo').value    = '';
+  renderDashboard();
+}
+
+function toggleHighlight() {
+  highlightEnabled = !highlightEnabled;
+  document.getElementById('highlightBtn').classList.toggle('active', highlightEnabled);
+  renderDashboard();
+}
+
+/* ─────────────────────────────────────────
+   DELETE
+───────────────────────────────────────── */
+function promptDeleteBid(id, name) {
+  pendingDeleteId = id;
+  document.getElementById('deleteProjectLabel').textContent = name;
+  openModal('deleteModal');
+}
+
+function confirmDeleteBid() {
+  if (!pendingDeleteId || !currentUser) return;
+  var id = pendingDeleteId;
+  closeModal('deleteModal');
+
+  db.collection('users').doc(currentUser.uid).collection('bids').doc(id).delete()
+    .then(function() {
+      bids = bids.filter(function(b){ return b.id !== id; });
+      pendingDeleteId = null;
+      renderDashboard();
+    })
+    .catch(function(err) {
+      console.error('deleteBid error:', err);
+      alert('Error deleting proposal. Please try again.');
+    });
+}
+
+/* ─────────────────────────────────────────
+   ACTUAL HOURS MODAL
+───────────────────────────────────────── */
+function openActualHoursModal(bidId) {
+  var bid = bids.find(function(b){ return b.id === bidId; });
+  if (!bid) return;
+
+  pendingActualHoursBidId = bidId;
+  document.getElementById('ahProjectLabel').textContent = bid.projectName;
+  document.getElementById('actualHoursInput').value    = bid.actualInstallHours != null ? bid.actualInstallHours : '';
+  document.getElementById('effPreview').style.display  = 'none';
+
+  openModal('actualHoursModal');
+
+  if (bid.actualInstallHours != null) previewEfficiency();
+  setTimeout(function() { document.getElementById('actualHoursInput').focus(); }, 120);
+}
+
+function previewEfficiency() {
+  var bid = bids.find(function(b){ return b.id === pendingActualHoursBidId; });
+  if (!bid) return;
+
+  var actual  = parseFloat(document.getElementById('actualHoursInput').value);
+  var preview = document.getElementById('effPreview');
+
+  if (isNaN(actual) || actual <= 0) {
+    preview.style.display = 'none';
+    return;
+  }
+
+  var eff = bid.proposedInstallHours / actual;
+  var st  = efficiencyStatus(eff);
+
+  document.getElementById('prevEffVal').textContent = fmtNum(eff, 2);
+  document.getElementById('prevEffBadge').innerHTML = badgeHTML(st);
+  preview.style.display = 'block';
+}
+
+function saveActualHours() {
+  if (!pendingActualHoursBidId || !currentUser) return;
+
+  var actual = parseFloat(document.getElementById('actualHoursInput').value);
+  if (isNaN(actual) || actual <= 0) {
+    alert('Please enter a valid positive number of hours.');
+    return;
+  }
+
+  var bid = bids.find(function(b){ return b.id === pendingActualHoursBidId; });
+  if (!bid) return;
+
+  var eff = bid.proposedInstallHours / actual;
+  var st  = efficiencyStatus(eff);
+  var upd = { actualInstallHours: actual, installEfficiency: eff, efficiencyStatus: st };
+
+  db.collection('users').doc(currentUser.uid).collection('bids').doc(pendingActualHoursBidId).update(upd)
+    .then(function() {
+      Object.assign(bid, upd);
+      closeModal('actualHoursModal');
+      pendingActualHoursBidId = null;
+      renderDashboard();
+    })
+    .catch(function(err) {
+      console.error('saveActualHours error:', err);
+      alert('Error saving. Please try again.');
+    });
+}
+
+/* ─────────────────────────────────────────
+   TAB SWITCHING
+───────────────────────────────────────── */
+function switchTab(tab) {
+  activeTab = tab;
+  var isCal = tab === 'calculator';
+  document.getElementById('calculatorSection').style.display = isCal ? 'block' : 'none';
+  document.getElementById('dashboardSection').style.display  = isCal ? 'none'  : 'block';
+  document.getElementById('tabCalculator').classList.toggle('active',  isCal);
+  document.getElementById('tabDashboard').classList.toggle('active',  !isCal);
+  if (!isCal) renderDashboard();
+}
+
+/* ─────────────────────────────────────────
+   MODAL HELPERS
+───────────────────────────────────────── */
+function openModal(id)  { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// Close on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(function(ov) {
+  ov.addEventListener('click', function(e) {
+    if (e.target !== ov) return;
+    ov.classList.remove('show');
+    if (ov.id === 'addRepModal') {
+      document.getElementById('salesRepSelect').value = '';
+    }
+  });
+});
+
+/* ─────────────────────────────────────────
+   LOGIN — KEYBOARD
+───────────────────────────────────────── */
+['loginEmail','loginPassword'].forEach(function(id) {
+  document.getElementById(id).addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+</script>
+</body>
+</html>
