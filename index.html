@@ -607,6 +607,18 @@
     .row-top:hover    td { background: #dcfce7 !important; }
     .row-bottom:hover td { background: #fee2e2 !important; }
 
+    /* Completed rows */
+    .row-completed td { opacity: 0.45; }
+    .row-completed:hover td { opacity: 0.65; }
+
+    /* Completed checkbox */
+    .completed-check {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+
     /* Empty state */
     .dash-empty {
       padding: 56px 24px;
@@ -960,6 +972,9 @@
           <button id="highlightBtn" class="highlight-toggle" onclick="toggleHighlight()">
             ◎&nbsp; Highlight Top / Bottom 3
           </button>
+          <button id="showCompletedBtn" class="highlight-toggle" onclick="toggleShowCompleted()">
+            ☑&nbsp; Show Completed
+          </button>
           <button class="btn btn-secondary clear-filters-btn" onclick="clearFilters()">Clear Filters</button>
         </div>
       </div>
@@ -1013,6 +1028,18 @@
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="cancelAddRep()">Cancel</button>
       <button class="btn btn-primary"   onclick="confirmAddRep()">Add Rep</button>
+    </div>
+  </div>
+</div>
+
+<!-- Complete Confirm -->
+<div id="completeModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Mark as Completed</h3>
+    <p>Mark <strong id="completeProjectLabel"></strong> as completed? It will be hidden from the dashboard but retained in all calculations.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('completeModal')">Cancel</button>
+      <button class="btn btn-primary"   onclick="confirmCompleteBid()">Mark Completed</button>
     </div>
   </div>
 </div>
@@ -1100,8 +1127,10 @@ var bids               = [];       // all bids for this user, desc by saveDate
 var salesReps          = [];       // persisted rep names for this login
 var billableRateDefault = null;    // set from the first saved proposal
 var pendingDeleteId    = null;
+var pendingCompleteId  = null;
 var pendingActualHoursBidId = null;
-var highlightEnabled   = false;
+var highlightEnabled       = false;
+var showCompletedEnabled   = false;
 var activeTab          = 'calculator';
 
 /* ─────────────────────────────────────────
@@ -1596,6 +1625,7 @@ function getFilteredBids() {
   var fTo   = document.getElementById('filterDateTo').value;
 
   return bids.filter(function(b) {
+    if (!showCompletedEnabled && b.completed)   return false;
     if (fRep  && b.salesRep !== fRep)           return false;
     if (fMix  && b.laborMixStatus !== fMix)     return false;
     if (fEff  && b.efficiencyStatus !== fEff)   return false;
@@ -1605,11 +1635,32 @@ function getFilteredBids() {
   });
 }
 
-function getHighlightedIds(filteredBids) {
+function getMetricBids() {
+  // Same as getFilteredBids but always includes completed rows for avg calculations
+  var fRep  = document.getElementById('filterRep').value;
+  var fMix  = document.getElementById('filterLaborMix').value;
+  var fEff  = document.getElementById('filterEfficiency').value;
+  var fFrom = document.getElementById('filterDateFrom').value;
+  var fTo   = document.getElementById('filterDateTo').value;
+
+  return bids.filter(function(b) {
+    if (fRep  && b.salesRep !== fRep)           return false;
+    if (fMix  && b.laborMixStatus !== fMix)     return false;
+    if (fEff  && b.efficiencyStatus !== fEff)   return false;
+    if (fFrom && b.saveDate < fFrom)             return false;
+    if (fTo   && b.saveDate > fTo)               return false;
+    return true;
+  });
+}
+
+function getHighlightedIds(filteredBids, metricBids) {
   if (!highlightEnabled) return { top: [], bottom: [] };
-  var withEff = filteredBids.filter(function(b) { return b.installEfficiency != null; });
-  if (withEff.length < 12) return { top: [], bottom: [] };
-  var sorted = withEff.slice().sort(function(a,b) { return b.installEfficiency - a.installEfficiency; });
+  // Threshold check uses metricBids (includes completed) so completed rows count toward 12
+  var allWithEff = metricBids.filter(function(b) { return b.installEfficiency != null; });
+  if (allWithEff.length < 12) return { top: [], bottom: [] };
+  // Ranking applies only to visible (filtered) rows
+  var visibleWithEff = filteredBids.filter(function(b) { return b.installEfficiency != null; });
+  var sorted = visibleWithEff.slice().sort(function(a,b) { return b.installEfficiency - a.installEfficiency; });
   return {
     top:    sorted.slice(0, 3).map(function(b){ return b.id; }),
     bottom: sorted.slice(-3).map(function(b){ return b.id; })
@@ -1618,14 +1669,15 @@ function getHighlightedIds(filteredBids) {
 
 function renderDashboard() {
   var filtered    = getFilteredBids();
-  var highlighted = getHighlightedIds(filtered);
+  var metricBids  = getMetricBids();
+  var highlighted = getHighlightedIds(filtered, metricBids);
   var showNum     = bids.some(function(b){ return b.number && b.number.trim() !== ''; });
 
-  // Metrics (over filtered set)
-  var effVals = filtered.filter(function(b){ return b.installEfficiency != null; })
-                        .map(function(b){ return b.installEfficiency; });
-  var mixVals = filtered.filter(function(b){ return b.actualLaborMixPct != null; })
-                        .map(function(b){ return b.actualLaborMixPct; });
+  // Metrics always include completed rows (use metricBids)
+  var effVals = metricBids.filter(function(b){ return b.installEfficiency != null; })
+                          .map(function(b){ return b.installEfficiency; });
+  var mixVals = metricBids.filter(function(b){ return b.actualLaborMixPct != null; })
+                          .map(function(b){ return b.actualLaborMixPct; });
 
   var avgEff = effVals.length ? effVals.reduce(function(a,v){ return a+v; },0) / effVals.length : null;
   var avgMix = mixVals.length ? mixVals.reduce(function(a,v){ return a+v; },0) / mixVals.length : null;
@@ -1665,6 +1717,7 @@ function renderDashboard() {
   hHTML += '<th>Labor Mix</th>';
   hHTML += '<th>Install Efficiency</th>';
   hHTML += '<th>Efficiency</th>';
+  hHTML += '<th>Completed</th>';
   hHTML += '<th></th>';
   hHTML += '</tr>';
   document.getElementById('dashHead').innerHTML = hHTML;
@@ -1675,6 +1728,7 @@ function renderDashboard() {
     var isTop    = highlighted.top.indexOf(bid.id)    !== -1;
     var isBottom = highlighted.bottom.indexOf(bid.id) !== -1;
     var rowCls   = isTop ? 'row-top' : isBottom ? 'row-bottom' : '';
+    if (bid.completed) rowCls += (rowCls ? ' ' : '') + 'row-completed';
 
     bHTML += '<tr class="' + rowCls + '" onclick="openActualHoursModal(\'' + bid.id + '\')">';
     bHTML += '<td>' + esc(bid.projectName) + '</td>';
@@ -1690,6 +1744,11 @@ function renderDashboard() {
     bHTML += '<td>' + (bid.laborMixStatus ? badgeHTML(bid.laborMixStatus) : '—') + '</td>';
     bHTML += '<td>' + (bid.installEfficiency != null ? fmtPct(bid.installEfficiency, 1) : '—') + '</td>';
     bHTML += '<td>' + (bid.efficiencyStatus  ? badgeHTML(bid.efficiencyStatus) : '—') + '</td>';
+    bHTML += '<td onclick="event.stopPropagation()" style="text-align:center">'
+           + '<input type="checkbox" class="completed-check"'
+           + (bid.completed ? ' checked' : '')
+           + ' onchange="handleCompletedChange(\'' + bid.id + '\',\'' + esc(bid.projectName) + '\',this)">'
+           + '</td>';
     bHTML += '<td onclick="event.stopPropagation()">'
            + '<button class="btn-delete" onclick="promptDeleteBid(\''
            + bid.id + '\',\'' + esc(bid.projectName) + '\')" title="Delete proposal">✕</button></td>';
@@ -1718,6 +1777,8 @@ function clearFilters() {
   document.getElementById('filterEfficiency').value = '';
   document.getElementById('filterDateFrom').value  = '';
   document.getElementById('filterDateTo').value    = '';
+  showCompletedEnabled = false;
+  document.getElementById('showCompletedBtn').classList.remove('active');
   renderDashboard();
 }
 
@@ -1725,6 +1786,57 @@ function toggleHighlight() {
   highlightEnabled = !highlightEnabled;
   document.getElementById('highlightBtn').classList.toggle('active', highlightEnabled);
   renderDashboard();
+}
+
+function toggleShowCompleted() {
+  showCompletedEnabled = !showCompletedEnabled;
+  document.getElementById('showCompletedBtn').classList.toggle('active', showCompletedEnabled);
+  renderDashboard();
+}
+
+/* ─────────────────────────────────────────
+   COMPLETED
+───────────────────────────────────────── */
+function handleCompletedChange(id, name, checkbox) {
+  if (checkbox.checked) {
+    checkbox.checked = false; // revert until confirmed
+    pendingCompleteId = id;
+    document.getElementById('completeProjectLabel').textContent = name;
+    openModal('completeModal');
+  } else {
+    uncheckCompleteBid(id);
+  }
+}
+
+function confirmCompleteBid() {
+  if (!pendingCompleteId || !currentUser) return;
+  var id = pendingCompleteId;
+  closeModal('completeModal');
+  db.collection('users').doc(currentUser.uid).collection('bids').doc(id).update({ completed: true })
+    .then(function() {
+      var bid = bids.find(function(b){ return b.id === id; });
+      if (bid) bid.completed = true;
+      pendingCompleteId = null;
+      renderDashboard();
+    })
+    .catch(function(err) {
+      console.error('completeBid error:', err);
+      alert('Error saving. Please try again.');
+    });
+}
+
+function uncheckCompleteBid(id) {
+  if (!currentUser) return;
+  db.collection('users').doc(currentUser.uid).collection('bids').doc(id).update({ completed: false })
+    .then(function() {
+      var bid = bids.find(function(b){ return b.id === id; });
+      if (bid) bid.completed = false;
+      renderDashboard();
+    })
+    .catch(function(err) {
+      console.error('uncheckCompleteBid error:', err);
+      alert('Error saving. Please try again.');
+    });
 }
 
 /* ─────────────────────────────────────────
