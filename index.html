@@ -1673,14 +1673,30 @@ function renderDashboard() {
   var highlighted = getHighlightedIds(filtered, metricBids);
   var showNum     = bids.some(function(b){ return b.number && b.number.trim() !== ''; });
 
-  // Metrics always include completed rows (use metricBids)
-  var effVals = metricBids.filter(function(b){ return b.installEfficiency != null; })
-                          .map(function(b){ return b.installEfficiency; });
-  var mixVals = metricBids.filter(function(b){ return b.actualLaborMixPct != null; })
-                          .map(function(b){ return b.actualLaborMixPct; });
+  // Weighted avg Install Efficiency = Σ Proposed Install Hrs ÷ Σ Actual Install Hrs
+  var sumProposed = 0, sumActual = 0, effCount = 0;
+  metricBids.forEach(function(b) {
+    if (b.actualInstallHours != null && b.proposedInstallHours != null) {
+      sumProposed += b.proposedInstallHours;
+      sumActual   += b.actualInstallHours;
+      effCount++;
+    }
+  });
+  var avgEff = (effCount > 0 && sumActual > 0) ? sumProposed / sumActual : null;
 
-  var avgEff = effVals.length ? effVals.reduce(function(a,v){ return a+v; },0) / effVals.length : null;
-  var avgMix = mixVals.length ? mixVals.reduce(function(a,v){ return a+v; },0) / mixVals.length : null;
+  // Weighted avg Actual Labor Mix = Σ Labor $ ÷ Σ (Equip $ + Parts $ + Labor $)
+  var sumLabor = 0, sumTotal = 0, mixCount = 0;
+  metricBids.forEach(function(b) {
+    if (b.laborForProposal != null) {
+      var equip = b.equipmentDollars || 0;
+      var parts = b.partsDollars     || 0;
+      var labor = b.laborForProposal  || 0;
+      sumLabor += labor;
+      sumTotal += equip + parts + labor;
+      mixCount++;
+    }
+  });
+  var avgMix = (mixCount > 0 && sumTotal > 0) ? sumLabor / sumTotal : null;
 
   document.getElementById('metricAvgEff').textContent = avgEff != null ? fmtPct(avgEff, 1) : '—';
   document.getElementById('metricAvgMix').textContent = avgMix != null ? fmtPct(avgMix, 1) : '—';
