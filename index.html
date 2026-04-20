@@ -1392,7 +1392,9 @@ function runCalc(i) {
 
   if (!isNaN(i.rate) && i.rate > 0) {
     r.installHours          = installLaborDollars / i.rate;
-    r.availableInstallHours = Math.round(r.installHours * (1 + i.indirect) * 2) / 2;
+    r.availableInstallHours = (isNaN(i.indirect) || i.indirect === 0)
+      ? r.installHours
+      : Math.round(r.installHours * (1 + i.indirect) * 2) / 2;
     r.pmHours               = pmDollars  / i.rate;
     r.desHours              = desDollars / i.rate;
     r.proposedInstallHours  = (laborForProposal / i.rate) - r.pmHours - r.desHours;
