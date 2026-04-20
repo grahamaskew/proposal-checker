@@ -929,9 +929,9 @@
             <span class="filter-label">Efficiency Status</span>
             <select id="filterEfficiency" onchange="renderDashboard()">
               <option value="">All</option>
-              <option>Strong</option>
-              <option>At Risk</option>
-              <option>Fail</option>
+              <option>Good</option>
+              <option>OK</option>
+              <option>Not Good</option>
             </select>
           </div>
           <div class="filter-group">
@@ -1142,14 +1142,14 @@ function laborMixStatus(mix, targetMix) {
 }
 
 function efficiencyStatus(eff) {
-  if (eff >= 1.0) return 'Strong';
-  if (eff >= 0.9) return 'At Risk';
-  return 'Fail';
+  if (eff >= 1.0) return 'Good';
+  if (eff >= 0.9) return 'OK';
+  return 'Not Good';
 }
 
 function badgeHTML(status) {
-  var cls = (status === 'Good'  || status === 'Strong')   ? 'badge-strong'
-          : (status === 'Pass'  || status === 'At Risk')  ? 'badge-at-risk'
+  var cls = (status === 'Good'   || status === 'Strong')            ? 'badge-strong'
+          : (status === 'Pass'   || status === 'OK' || status === 'At Risk') ? 'badge-at-risk'
           : 'badge-fail';
   return '<span class="badge ' + cls + '">' + esc(status) + '</span>';
 }
@@ -1615,7 +1615,7 @@ function renderDashboard() {
   var avgEff = effVals.length ? effVals.reduce(function(a,v){ return a+v; },0) / effVals.length : null;
   var avgMix = mixVals.length ? mixVals.reduce(function(a,v){ return a+v; },0) / mixVals.length : null;
 
-  document.getElementById('metricAvgEff').textContent = avgEff != null ? fmtNum(avgEff, 2) : '—';
+  document.getElementById('metricAvgEff').textContent = avgEff != null ? fmtPct(avgEff, 1) : '—';
   document.getElementById('metricAvgMix').textContent = avgMix != null ? fmtPct(avgMix, 1) : '—';
 
   rebuildFilterRepOptions();
@@ -1673,7 +1673,7 @@ function renderDashboard() {
     bHTML += '<td>' + (bid.availableInstallHours != null ? fmtNum(bid.availableInstallHours, 1) : '—') + '</td>';
     bHTML += '<td>' + (bid.actualLaborMixPct     != null ? fmtPct(bid.actualLaborMixPct, 1)     : '—') + '</td>';
     bHTML += '<td>' + (bid.laborMixStatus ? badgeHTML(bid.laborMixStatus) : '—') + '</td>';
-    bHTML += '<td>' + (bid.installEfficiency != null ? fmtNum(bid.installEfficiency, 2) : '—') + '</td>';
+    bHTML += '<td>' + (bid.installEfficiency != null ? fmtPct(bid.installEfficiency, 1) : '—') + '</td>';
     bHTML += '<td>' + (bid.efficiencyStatus  ? badgeHTML(bid.efficiencyStatus) : '—') + '</td>';
     bHTML += '<td onclick="event.stopPropagation()">'
            + '<button class="btn-delete" onclick="promptDeleteBid(\''
@@ -1771,7 +1771,7 @@ function previewEfficiency() {
   var eff = bid.proposedInstallHours / actual;
   var st  = efficiencyStatus(eff);
 
-  document.getElementById('prevEffVal').textContent = fmtNum(eff, 2);
+  document.getElementById('prevEffVal').textContent = fmtPct(eff, 1);
   document.getElementById('prevEffBadge').innerHTML = badgeHTML(st);
   preview.style.display = 'block';
 }
