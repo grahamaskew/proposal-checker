@@ -1147,6 +1147,11 @@ function fmtDollar(v) {
   if (isNaN(n) || n == null) return '—';
   return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
+function fmtDollarWhole(v) {
+  var n = typeof v === 'number' ? v : parseCurr(v);
+  if (isNaN(n) || n == null) return '—';
+  return '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
 function fmtNum(v, dp) {
   if (v == null || isNaN(v)) return '—';
@@ -1751,9 +1756,9 @@ function renderDashboard() {
     if (showNum) bHTML += '<td>' + esc(bid.number || '') + '</td>';
     bHTML += '<td>' + esc(bid.salesRep || '') + '</td>';
     bHTML += '<td>' + fmtDate(bid.saveDate) + '</td>';
-    bHTML += '<td>' + fmtDollar(bid.equipmentDollars) + '</td>';
-    bHTML += '<td>' + fmtDollar(bid.partsDollars) + '</td>';
-    bHTML += '<td>' + fmtDollar(bid.laborForProposal) + '</td>';
+    bHTML += '<td>' + fmtDollarWhole(bid.equipmentDollars) + '</td>';
+    bHTML += '<td>' + fmtDollarWhole(bid.partsDollars) + '</td>';
+    bHTML += '<td>' + fmtDollarWhole(bid.laborForProposal) + '</td>';
     bHTML += '<td>' + (bid.proposedInstallHours  != null ? fmtNum(bid.proposedInstallHours, 1)  : '—') + '</td>';
     bHTML += '<td>' + (bid.availableInstallHours != null ? fmtNum(bid.availableInstallHours, 1) : '—') + '</td>';
     bHTML += '<td>' + (bid.actualLaborMixPct     != null ? fmtPct(bid.actualLaborMixPct, 1)     : '—') + '</td>';
