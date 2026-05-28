@@ -424,6 +424,24 @@
 </div>
 
 
+<!-- Overwrite Hours Warning -->
+<div id="overwriteHoursModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Lower Value — Confirm Overwrite</h3>
+    <p>
+      The new entry (<strong id="overwriteNewHours"></strong> hrs) is <strong>less than</strong>
+      the current record (<strong id="overwriteOldHours"></strong> hrs). This will recalculate
+      install efficiency downward.
+    </p>
+    <p style="margin-bottom:0">Are you sure you want to overwrite?</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('overwriteHoursModal')">Cancel</button>
+      <button class="btn btn-danger"    onclick="confirmOverwriteHours()">Overwrite</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- ════════════════════════════════════════
      SCRIPT
 ════════════════════════════════════════ -->
@@ -469,6 +487,7 @@ var billableRateDefault = null;    // set from the first saved proposal
 var pendingDeleteId    = null;
 var pendingCompleteId  = null;
 var pendingActualHoursBidId = null;
+var pendingOverwriteHours   = null;
 var highlightEnabled       = false;
 var showCompletedEnabled   = false;
 var activeTab          = 'calculator';
@@ -1063,6 +1082,7 @@ function renderDashboard() {
   hHTML += '<th>Available Install Hrs</th>';
   hHTML += '<th>Actual Labor Mix</th>';
   hHTML += '<th>Labor Mix</th>';
+  hHTML += '<th>Actual Hrs</th>';
   hHTML += '<th>Install Efficiency</th>';
   hHTML += '<th>Efficiency</th>';
   hHTML += '<th>Completed</th>';
@@ -1089,6 +1109,7 @@ function renderDashboard() {
     bHTML += '<td>' + (bid.availableInstallHours != null ? fmtNum(bid.availableInstallHours, 1) : '—') + '</td>';
     bHTML += '<td>' + (bid.actualLaborMixPct     != null ? fmtPct(bid.actualLaborMixPct, 1)     : '—') + '</td>';
     bHTML += '<td>' + (bid.laborMixStatus ? badgeHTML(bid.laborMixStatus) : '—') + '</td>';
+    bHTML += '<td>' + (bid.actualInstallHours != null ? fmtNum(bid.actualInstallHours, 1) : '—') + '</td>';
     bHTML += '<td>' + (bid.installEfficiency != null ? fmtPct(bid.installEfficiency, 1) : '—') + '</td>';
     bHTML += '<td>' + (bid.efficiencyStatus  ? badgeHTML(bid.efficiencyStatus) : '—') + '</td>';
     bHTML += '<td onclick="event.stopPropagation()" style="text-align:center">'
@@ -1261,6 +1282,30 @@ function saveActualHours() {
 
   var bid = bids.find(function(b){ return b.id === pendingActualHoursBidId; });
   if (!bid) return;
+
+  // Warn if new value is lower than what's currently stored
+  if (bid.actualInstallHours != null && actual < bid.actualInstallHours) {
+    pendingOverwriteHours = actual;
+    document.getElementById('overwriteOldHours').textContent = fmtNum(bid.actualInstallHours, 1);
+    document.getElementById('overwriteNewHours').textContent = fmtNum(actual, 1);
+    openModal('overwriteHoursModal');
+    return;
+  }
+
+  doSaveActualHours(actual);
+}
+
+function confirmOverwriteHours() {
+  closeModal('overwriteHoursModal');
+  if (pendingOverwriteHours != null) {
+    doSaveActualHours(pendingOverwriteHours);
+    pendingOverwriteHours = null;
+  }
+}
+
+function doSaveActualHours(actual) {
+  var bid = bids.find(function(b){ return b.id === pendingActualHoursBidId; });
+  if (!bid || !currentUser) return;
 
   var eff = bid.proposedInstallHours / actual;
   var st  = efficiencyStatus(eff);
