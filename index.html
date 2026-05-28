@@ -5,709 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Proposals &amp; Install Efficiency</title>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <style>
-    /* ── Variables ── */
-    :root {
-      --bg:          #f4f6fb;
-      --surface:     #ffffff;
-      --surface2:    #edf0f8;
-      --border:      #d4daf0;
-      --accent:      #6687e1;
-      --accent-dim:  #4a6abf;
-      --text:        #1a1f36;
-      --text-muted:  #6b7590;
-      --danger:      #e05555;
-      --success:     #16a34a;
-      --warning-bg:  #fffbeb;
-      --warning-bd:  #fcd34d;
-      --warning-tx:  #78350f;
-    }
-
-    /* ── Reset ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    button { cursor: pointer; font-family: 'Geist', sans-serif; }
-
-    /* ── Body ── */
-    body {
-      font-family: 'Geist', sans-serif;
-      font-size: 15px;
-      color: var(--text);
-      background-color: var(--bg);
-      background-image: radial-gradient(circle, rgba(102,135,225,0.07) 1px, transparent 1px);
-      background-size: 28px 28px;
-      background-attachment: fixed;
-      min-height: 100vh;
-    }
-
-    /* ── Container ── */
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 24px 24px 48px;
-    }
-
-    /* ══════════════════════════════
-       LOGIN SCREEN
-    ══════════════════════════════ */
-    #loginScreen {
-      position: fixed;
-      inset: 0;
-      background-color: var(--bg);
-      background-image: radial-gradient(circle, rgba(102,135,225,0.07) 1px, transparent 1px);
-      background-size: 28px 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-
-    .login-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 40px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: 0 4px 24px rgba(102,135,225,0.1);
-    }
-
-    .login-card h1 {
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .login-card .login-subtitle {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-bottom: 28px;
-    }
-
-    .login-error {
-      display: none;
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      color: #dc2626;
-      border-radius: 6px;
-      padding: 10px 14px;
-      font-size: 13px;
-      margin-top: 12px;
-    }
-
-    /* ══════════════════════════════
-       HEADER
-    ══════════════════════════════ */
-    .header {
-      position: sticky;
-      top: 0;
-      z-index: 200;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      padding: 0 24px;
-      height: 56px;
-    }
-
-    .header-left { display: flex; align-items: center; gap: 0; }
-
-    .app-logo {
-      height: 32px;
-      width: auto;
-      margin-right: 16px;
-    }
-
-    .header-center {
-      text-align: center;
-    }
-
-    .app-title {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-
-    .nav-tabs { display: flex; }
-
-    .nav-tab {
-      padding: 0 20px;
-      height: 56px;
-      line-height: 56px;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-muted);
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      transition: color 0.15s, border-color 0.15s;
-    }
-
-    .nav-tab:hover { color: var(--text); }
-    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-    .header-right { display: flex; align-items: center; gap: 12px; }
-
-    .user-email {
-      font-size: 13px;
-      color: var(--text-muted);
-    }
-
-    /* ══════════════════════════════
-       LOADING OVERLAY
-    ══════════════════════════════ */
-    #loadingOverlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(244,246,251,0.85);
-      z-index: 300;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ══════════════════════════════
-       CARDS
-    ══════════════════════════════ */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 24px;
-      margin-bottom: 16px;
-    }
-
-    .card-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      margin-bottom: 18px;
-    }
-
-    /* ══════════════════════════════
-       FORM FIELDS
-    ══════════════════════════════ */
-    .field-group { display: flex; flex-direction: column; gap: 6px; }
-
-    .field-label {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-muted);
-    }
-
-    .field-label .req { color: var(--accent); margin-left: 2px; }
-
-    input[type="text"],
-    input[type="number"],
-    input[type="email"],
-    input[type="password"],
-    input[type="date"],
-    select {
-      width: 100%;
-      height: 38px;
-      padding: 0 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-family: 'Geist', sans-serif;
-      font-size: 15px;
-      color: var(--text);
-      background: var(--surface);
-      transition: border-color 0.15s, box-shadow 0.15s;
-      appearance: none;
-      -webkit-appearance: none;
-    }
-
-    input:focus, select:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(102,135,225,0.12);
-    }
-
-    /* Editable calculator inputs — subtle blue tint */
-    .calc-input { background: #eef2fb; }
-    .calc-input:focus { background: #e8edf9; }
-
-    select.calc-input {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7590' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 32px;
-    }
-
-    select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7590' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 32px;
-    }
-
-    /* ── Grids ── */
-    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-
-    /* ══════════════════════════════
-       BUTTONS
-    ══════════════════════════════ */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      height: 38px;
-      padding: 0 18px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 500;
-      border: 1px solid transparent;
-      transition: all 0.15s;
-      white-space: nowrap;
-    }
-
-    .btn-primary   { background: var(--accent);  color: #fff; border-color: var(--accent); }
-    .btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
-
-    .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
-    .btn-secondary:hover { background: var(--surface2); }
-
-    .btn-danger    { background: var(--danger);  color: #fff; border-color: var(--danger); }
-    .btn-danger:hover { background: #c04040; border-color: #c04040; }
-
-    .btn-sm { height: 32px; padding: 0 14px; font-size: 13px; }
-
-    .btn-delete {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text-muted);
-      font-size: 13px;
-      transition: all 0.15s;
-      line-height: 1;
-    }
-
-    .btn-delete:hover {
-      background: #fef2f2;
-      border-color: #fecaca;
-      color: var(--danger);
-    }
-
-    /* ══════════════════════════════
-       CALC OUTPUT TABLES
-    ══════════════════════════════ */
-    .calc-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .calc-table td {
-      padding: 9px 12px;
-      border-bottom: 1px solid var(--surface2);
-      font-size: 14px;
-    }
-
-    .calc-table tr:last-child td { border-bottom: none; }
-
-    .calc-table td:first-child { color: var(--text-muted); }
-
-    .calc-table td:last-child {
-      text-align: right;
-      font-weight: 600;
-      color: var(--accent-dim);
-    }
-
-    .calc-table tr.total-row { background: var(--surface2); }
-
-    .calc-table tr.total-row td {
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .calc-table tr.total-row td:first-child { color: var(--text); }
-    .calc-table tr.total-row td:last-child   { color: var(--text); }
-
-    /* Muted rows — very light grey, used when a value is superseded */
-    .calc-table tr.row-muted td:first-child,
-    .calc-table tr.row-muted td:last-child { color: #cdd3e8 !important; font-weight: 400; }
-
-    /* ══════════════════════════════
-       BADGES
-    ══════════════════════════════ */
-    .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 100px;
-      font-size: 12px;
-      font-weight: 600;
-      line-height: 1.4;
-    }
-
-    .badge-strong  { background: #dcfce7; color: #15803d; }
-    .badge-at-risk { background: #fef9c3; color: #a16207; }
-    .badge-fail    { background: #fee2e2; color: #b91c1c; }
-
-    /* ══════════════════════════════
-       STATUS ROW (below Table 2)
-    ══════════════════════════════ */
-    .status-row {
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid var(--surface2);
-    }
-
-    .status-row-label { font-size: 13px; color: var(--text-muted); }
-
-    .status-row-value {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      font-size: 14px;
-    }
-
-    /* ══════════════════════════════
-       WARNING BOX
-    ══════════════════════════════ */
-    .warning-box {
-      display: none;
-      align-items: flex-start;
-      gap: 12px;
-      background: var(--warning-bg);
-      border: 1px solid var(--warning-bd);
-      border-radius: 6px;
-      padding: 14px 16px;
-      margin-bottom: 16px;
-      font-size: 14px;
-      color: var(--warning-tx);
-      line-height: 1.5;
-    }
-
-    .warning-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-
-    /* ══════════════════════════════
-       MODALS
-    ══════════════════════════════ */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(26,31,54,0.45);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 600;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.18s;
-    }
-
-    .modal-overlay.show { opacity: 1; pointer-events: all; }
-
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 32px;
-      width: 100%;
-      max-width: 460px;
-      box-shadow: 0 12px 48px rgba(26,31,54,0.18);
-      transform: translateY(4px);
-      transition: transform 0.18s;
-    }
-
-    .modal-overlay.show .modal { transform: translateY(0); }
-
-    .modal h3 {
-      font-size: 17px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 10px;
-    }
-
-    .modal p {
-      font-size: 14px;
-      color: var(--text-muted);
-      line-height: 1.55;
-      margin-bottom: 20px;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-      margin-top: 24px;
-    }
-
-    .field-error {
-      display: none;
-      font-size: 12px;
-      color: var(--danger);
-      margin-top: 4px;
-    }
-
-    /* ══════════════════════════════
-       DASHBOARD — METRICS
-    ══════════════════════════════ */
-    .metrics-row {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-
-    .metric-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 20px 24px;
-    }
-
-    .metric-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      margin-bottom: 6px;
-    }
-
-    .metric-value {
-      font-size: 28px;
-      font-weight: 600;
-      color: var(--accent-dim);
-      letter-spacing: -0.02em;
-    }
-
-    /* ══════════════════════════════
-       DASHBOARD — FILTERS
-    ══════════════════════════════ */
-    .filters-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: flex-end;
-    }
-
-    .filter-group { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
-
-    .filter-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-
-    .filter-group select,
-    .filter-group input[type="date"] {
-      height: 34px;
-      font-size: 13px;
-      padding: 0 10px;
-    }
-
-    .filter-group select {
-      padding-right: 28px;
-    }
-
-    .highlight-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      height: 34px;
-      padding: 0 14px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--surface);
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 500;
-      transition: all 0.15s;
-      white-space: nowrap;
-      align-self: flex-end;
-    }
-
-    .highlight-toggle:hover { border-color: var(--accent); color: var(--accent); }
-
-    .highlight-toggle.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
-
-    .clear-filters-btn {
-      align-self: flex-end;
-      height: 34px;
-      padding: 0 14px;
-      font-size: 13px;
-    }
-
-    /* ══════════════════════════════
-       DASHBOARD — TABLE
-    ══════════════════════════════ */
-    .dash-table-wrap { }
-
-    .dash-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      table-layout: fixed;
-    }
-
-    .dash-table th {
-      padding: 10px 10px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      border-bottom: 2px solid var(--border);
-      white-space: normal;
-      word-break: break-word;
-      background: var(--surface);
-      vertical-align: bottom;
-    }
-
-    .dash-table td {
-      padding: 11px 10px;
-      border-bottom: 1px solid var(--surface2);
-      white-space: normal;
-      word-break: break-word;
-      vertical-align: middle;
-      cursor: pointer;
-    }
-
-    .dash-table tbody tr:hover td { background: var(--surface2); }
-
-    .dash-table td:last-child { cursor: default; }
-
-    /* Row highlights */
-    .row-top    td { background: #f0fdf4 !important; }
-    .row-bottom td { background: #fef2f2 !important; }
-    .row-top:hover    td { background: #dcfce7 !important; }
-    .row-bottom:hover td { background: #fee2e2 !important; }
-
-    /* Completed rows */
-    .row-completed td { opacity: 0.45; }
-    .row-completed:hover td { opacity: 0.65; }
-
-    /* Completed checkbox */
-    .completed-check {
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-      accent-color: var(--accent);
-    }
-
-    /* Empty state */
-    .dash-empty {
-      padding: 56px 24px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    /* ══════════════════════════════
-       EFFICIENCY PREVIEW
-    ══════════════════════════════ */
-    .eff-preview {
-      display: none;
-      background: var(--surface2);
-      border-radius: 6px;
-      padding: 12px 16px;
-      margin-top: 14px;
-    }
-
-    .eff-preview-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .eff-preview-label { font-size: 13px; color: var(--text-muted); }
-
-    .eff-preview-val {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-    }
-
-    /* ══════════════════════════════
-       UTILITIES
-    ══════════════════════════════ */
-    .section-content { padding-top: 4px; }
-
-    .action-bar {
-      display: flex;
-      gap: 12px;
-      justify-content: flex-end;
-      margin-bottom: 40px;
-    }
-
-    .divider {
-      height: 1px;
-      background: var(--border);
-      margin: 20px 0;
-    }
-
-    .override-note {
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 400;
-    }
-
-    /* ══════════════════════════════
-       PRINT
-    ══════════════════════════════ */
-    @media print {
-      .header, .action-bar, .modal-overlay, #loadingOverlay,
-      .nav-tabs, .header-right, button { display: none !important; }
-      body { background: #fff; }
-      .card { box-shadow: none; border: 1px solid #ccc; }
-    }
-  </style>
 </head>
 <body>
+
 
 <!-- ════════════════════════════════════════
      LOGIN SCREEN
 ════════════════════════════════════════ -->
-<div id="loginScreen">
+<div id="loginScreen" class="login-wrap">
   <div class="login-card">
-    <h1>Proposals &amp; Install Efficiency</h1>
-    <p class="login-subtitle">Sign in to continue</p>
-    <div class="field-group">
-      <label class="field-label">Email</label>
-      <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+
+    <div class="login-hero">
+      <div class="login-hero-eyebrow">
+        <div class="login-hero-icon">
+          <img src="ga%20logo%20wht%20transparent.png" alt="GA" width="60" height="60">
+        </div>
+        <span class="login-hero-label">Proposal Tool</span>
+      </div>
+      <div class="login-hero-title">Proposals &amp;</div>
+      <div class="login-hero-sub">Install Efficiency</div>
     </div>
-    <div class="field-group" style="margin-top:12px">
-      <label class="field-label">Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+
+    <div class="login-form">
+      <p class="login-intro">Sign in to continue</p>
+      <div class="login-field">
+        <label class="login-field-label">Email</label>
+        <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+      </div>
+      <div class="login-field" style="margin-top:12px">
+        <label class="login-field-label">Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div id="loginError" class="login-error"></div>
+      <button class="login-btn" onclick="doLogin()">Sign In</button>
     </div>
-    <div id="loginError" class="login-error"></div>
-    <button class="btn btn-primary" style="width:100%;margin-top:20px" onclick="doLogin()">Sign In</button>
+
   </div>
 </div>
 
@@ -717,50 +53,55 @@
 ════════════════════════════════════════ -->
 <div id="appContainer" style="display:none">
 
-  <!-- Header -->
-  <header class="header">
-    <div class="header-left">
-      <img src="data:image/png;base64,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" class="app-logo" alt="GA">
-      <nav class="nav-tabs">
-        <button class="nav-tab active" id="tabCalculator" onclick="switchTab('calculator')">Calculator</button>
-        <button class="nav-tab"        id="tabDashboard"  onclick="switchTab('dashboard')">Dashboard</button>
-      </nav>
+  <!-- ── Topbar ── -->
+  <div class="app-topbar">
+    <div class="app-topbar-inner">
+      <div class="app-header">
+        <div class="app-header-left">
+          <img src="ga%20logo%20wht%20transparent.png" alt="GA" width="60" height="60" style="flex-shrink:0">
+          <div>
+            <div class="app-title">Proposals &amp; Install Efficiency</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <span class="header-user" id="userEmailDisplay"></span>
+          <button class="btn-ghost-navy btn-sm" onclick="doSignOut()">Sign Out</button>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" id="tabCalculator" onclick="switchTab('calculator')">Calculator</button>
+        <button class="tab-btn"        id="tabDashboard"  onclick="switchTab('dashboard')">Dashboard</button>
+      </div>
     </div>
-    <div class="header-center">
-      <span class="app-title">Proposals &amp; Install Efficiency</span>
-    </div>
-    <div class="header-right">
-      <span class="user-email" id="userEmailDisplay"></span>
-      <button class="btn btn-secondary btn-sm" onclick="doSignOut()">Sign Out</button>
-    </div>
-  </header>
+  </div>
 
-  <!-- Loading -->
+  <!-- ── Loading overlay ── -->
   <div id="loadingOverlay">
     <div class="spinner"></div>
     <span style="font-size:13px;color:var(--text-muted)">Loading…</span>
   </div>
 
+
   <!-- ──────────────────────────────
        CALCULATOR SECTION
   ────────────────────────────── -->
   <section id="calculatorSection" class="section-content">
-    <div class="container">
+    <div class="app">
 
       <!-- Project Details -->
-      <div class="card">
-        <div class="card-title">Project Details</div>
+      <div class="section">
+        <div class="section-title">Project Details</div>
         <div class="grid-3">
-          <div class="field-group">
-            <label class="field-label">Project Name <span class="req">*</span></label>
+          <div class="form-group">
+            <label class="field-label">Project Name <span style="color:var(--accent);margin-left:2px">*</span></label>
             <input type="text" id="projectName" class="calc-input" placeholder="Enter project name">
           </div>
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">Project No. <span class="override-note">(optional)</span></label>
             <input type="text" id="projectNumber" class="calc-input" placeholder="">
           </div>
-          <div class="field-group">
-            <label class="field-label">Sales Rep <span class="req">*</span></label>
+          <div class="form-group">
+            <label class="field-label">Sales Rep <span style="color:var(--accent);margin-left:2px">*</span></label>
             <select id="salesRepSelect" class="calc-input" onchange="handleRepChange(this)">
               <option value="">— Select —</option>
               <option value="__add__">+ Add new rep…</option>
@@ -770,26 +111,26 @@
       </div>
 
       <!-- Proposal Financials -->
-      <div class="card">
-        <div class="card-title">Proposal Numbers (from proposal software)</div>
+      <div class="section">
+        <div class="section-title">Proposal Numbers (from proposal software)</div>
         <div class="grid-4">
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">Equipment $</label>
             <input type="text" id="equipmentDollars" class="calc-input" placeholder="0.00"
               oninput="calculate()" onblur="fmtCurrInput(this)">
           </div>
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">Parts $</label>
             <input type="text" id="partsDollars" class="calc-input" placeholder="0.00"
               oninput="calculate()" onblur="fmtCurrInput(this)">
           </div>
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">Labor $</label>
             <input type="text" id="laborDollars" class="calc-input" placeholder="0.00"
               oninput="calculate()" onblur="fmtCurrInput(this)">
           </div>
-          <div class="field-group">
-            <label class="field-label">Billable Rate $/hr <span class="req">*</span></label>
+          <div class="form-group">
+            <label class="field-label">Billable Rate $/hr <span style="color:var(--accent);margin-left:2px">*</span></label>
             <input type="text" id="billableRate" class="calc-input" placeholder="e.g. 150"
               oninput="calculate()" onblur="fmtCurrInput(this)">
           </div>
@@ -797,24 +138,24 @@
       </div>
 
       <!-- Configuration -->
-      <div class="card">
-        <div class="card-title">Configuration</div>
+      <div class="section">
+        <div class="section-title">Configuration</div>
         <div class="grid-2" style="margin-bottom:14px">
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">Target Labor Mix %</label>
             <input type="number" id="targetLaborMix" class="calc-input" value="35" min="0" max="100" step="0.1" oninput="calculate()">
           </div>
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">Indirect Labor %</label>
             <input type="number" id="indirectLabor" class="calc-input" value="25" min="0" max="100" step="0.1" oninput="calculate()">
           </div>
         </div>
         <div class="grid-2" style="margin-bottom:14px">
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">PM %</label>
             <input type="number" id="pmPercent" class="calc-input" value="3.0" min="0" max="100" step="0.1" oninput="calculate()">
           </div>
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">PM Labor Basis</label>
             <select id="pmBasis" class="calc-input" onchange="calculate()">
               <option value="equipment">% of Equipment</option>
@@ -824,11 +165,11 @@
           </div>
         </div>
         <div class="grid-2">
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">Design %</label>
             <input type="number" id="designPercent" class="calc-input" value="2.5" min="0" max="100" step="0.1" oninput="calculate()">
           </div>
-          <div class="field-group">
+          <div class="form-group">
             <label class="field-label">Design Labor Basis</label>
             <select id="designBasis" class="calc-input" onchange="calculate()">
               <option value="equipment">% of Equipment</option>
@@ -843,8 +184,8 @@
       <div class="grid-2">
 
         <!-- Table 1 -->
-        <div class="card">
-          <div class="card-title">Available Install Hours</div>
+        <div class="section">
+          <div class="section-title">Available Install Hours</div>
           <table class="calc-table">
             <tr><td>PM $</td>                       <td id="o_pmDollars">—</td></tr>
             <tr><td>Design $</td>                   <td id="o_designDollars">—</td></tr>
@@ -858,10 +199,10 @@
         </div>
 
         <!-- Table 2 -->
-        <div class="card">
-          <div class="card-title">Customer Proposal Labor $ / Install Hours</div>
+        <div class="section">
+          <div class="section-title">Customer Proposal Labor $ / Install Hours</div>
 
-          <div class="field-group" style="margin-bottom:16px">
+          <div class="form-group" style="margin-bottom:16px">
             <label class="field-label">
               Labor $ Override
               <span class="override-note">(optional — leave blank to use recommended)</span>
@@ -878,7 +219,7 @@
             <tr id="tr_proposalTotal"><td>Proposal Total $ (exc. taxes)</td>          <td id="o_proposalTotal">—</td></tr>
             <tr id="tr_overrideProposalTotal"><td>Override Proposal Total (exc. taxes)</td> <td id="o_overrideProposalTotal">—</td></tr>
             <tr><td>PM Hours</td>                                  <td id="o_pmHours">—</td></tr>
-            <tr><td>Design Hours</td>                    <td id="o_designHours">—</td></tr>
+            <tr><td>Design Hours</td>                              <td id="o_designHours">—</td></tr>
             <tr class="total-row">
               <td>Proposed Install Hours</td>
               <td id="o_proposedInstallHours">—</td>
@@ -909,7 +250,7 @@
       <!-- Action Bar -->
       <div class="action-bar">
         <button class="btn btn-secondary" onclick="confirmReset()">Reset</button>
-        <button class="btn btn-primary" id="saveBidBtn" onclick="saveBid()">Save to Dashboard</button>
+        <button class="btn-primary" id="saveBidBtn" onclick="saveBid()">Save to Dashboard</button>
       </div>
 
     </div>
@@ -920,22 +261,22 @@
        DASHBOARD SECTION
   ────────────────────────────── -->
   <section id="dashboardSection" class="section-content" style="display:none">
-    <div class="container">
+    <div class="app">
 
       <!-- Metrics -->
       <div class="metrics-row">
         <div class="metric-card">
-          <div class="metric-label">Avg Install Efficiency</div>
-          <div class="metric-value" id="metricAvgEff">—</div>
+          <div class="mc-label">Avg Install Efficiency</div>
+          <div class="mc-value" id="metricAvgEff">—</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">Avg Actual Labor Mix</div>
-          <div class="metric-value" id="metricAvgMix">—</div>
+          <div class="mc-label">Avg Actual Labor Mix</div>
+          <div class="mc-value" id="metricAvgMix">—</div>
         </div>
       </div>
 
       <!-- Filters -->
-      <div class="card" style="margin-bottom:16px;padding:16px 20px">
+      <div class="section" style="padding:16px 20px;margin-bottom:1rem">
         <div class="filters-row">
           <div class="filter-group">
             <span class="filter-label">Sales Rep</span>
@@ -980,7 +321,7 @@
       </div>
 
       <!-- Table -->
-      <div class="card" style="padding:0;margin-bottom:0">
+      <div class="section" style="padding:0;margin-bottom:0">
         <div class="dash-table-wrap">
           <table class="dash-table" id="dashTable" style="display:none">
             <thead id="dashHead"></thead>
@@ -1018,7 +359,7 @@
 <div id="addRepModal" class="modal-overlay">
   <div class="modal">
     <h3>Add Sales Rep</h3>
-    <div class="field-group">
+    <div class="form-group">
       <label class="field-label">Rep Name</label>
       <input type="text" id="newRepInput" placeholder="Enter name…"
         oninput="document.getElementById('addRepError').style.display='none'"
@@ -1027,7 +368,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="cancelAddRep()">Cancel</button>
-      <button class="btn btn-primary"   onclick="confirmAddRep()">Add Rep</button>
+      <button class="btn-primary"       onclick="confirmAddRep()">Add Rep</button>
     </div>
   </div>
 </div>
@@ -1039,7 +380,7 @@
     <p>Mark <strong id="completeProjectLabel"></strong> as completed? It will be hidden from the dashboard but retained in all calculations.</p>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('completeModal')">Cancel</button>
-      <button class="btn btn-primary"   onclick="confirmCompleteBid()">Mark Completed</button>
+      <button class="btn-primary"       onclick="confirmCompleteBid()">Mark Completed</button>
     </div>
   </div>
 </div>
@@ -1060,8 +401,8 @@
 <div id="actualHoursModal" class="modal-overlay">
   <div class="modal">
     <h3>Post-Project Data</h3>
-    <p id="ahProjectLabel" style="font-weight:600;color:var(--text);margin-bottom:16px"></p>
-    <div class="field-group">
+    <p id="ahProjectLabel" style="font-weight:600;color:var(--text-primary);margin-bottom:16px"></p>
+    <div class="form-group">
       <label class="field-label">Actual Install Hours</label>
       <input type="number" id="actualHoursInput" min="0" step="0.5"
         placeholder="e.g. 120.5" oninput="previewEfficiency()">
@@ -1077,7 +418,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('actualHoursModal')">Cancel</button>
-      <button class="btn btn-primary"   onclick="saveActualHours()">Update</button>
+      <button class="btn-primary"       onclick="saveActualHours()">Update</button>
     </div>
   </div>
 </div>
@@ -1090,8 +431,7 @@
 'use strict';
 
 /* ─────────────────────────────────────────
-   FIREBASE — PLACEHOLDER CONFIG
-   Replace with real config before deployment
+   FIREBASE CONFIG
 ───────────────────────────────────────── */
 var firebaseConfig = {
   apiKey:            "AIzaSyCB8kSNwvQWEjRM5D2Ypb7oLCnr3BQ_jvs",
@@ -1415,7 +755,6 @@ function runCalc(i) {
   var totalMaterial       = i.eq + i.parts;
   var overrideActive      = !isNaN(i.override) && i.override > 0;
 
-  // Dollar calculations don't need billable rate
   var recommendedLabor  = (i.targetMix * totalMaterial) / (1 - i.targetMix);
   var laborForProposal  = overrideActive ? i.override : recommendedLabor;
   var proposalTotal         = i.eq + i.parts + recommendedLabor;
@@ -1485,7 +824,7 @@ function calculate() {
   setText('o_designHours',          r.desHours != null ? fmtNum(r.desHours, 1) : '—');
   setText('o_proposedInstallHours', r.proposedInstallHours != null ? fmtNum(r.proposedInstallHours, 1) : '—');
 
-  // Mute / un-mute override rows vs. proposal total row based on whether override is active
+  // Mute / un-mute override rows
   var trOvLabor  = document.getElementById('tr_overrideLabor');
   var trPropTot  = document.getElementById('tr_proposalTotal');
   var trOvTot    = document.getElementById('tr_overrideProposalTotal');
@@ -1499,7 +838,7 @@ function calculate() {
     trPropTot.classList.remove('row-muted');
   }
 
-  // Labor mix status row (only when override active)
+  // Labor mix status row
   var statusRow = document.getElementById('laborMixStatusRow');
   if (r.overrideActive && r.actualLaborMixPct != null) {
     setText('o_actualLaborMix', fmtPct(r.actualLaborMixPct, 1));
@@ -1544,7 +883,7 @@ function saveBid() {
 
   var inputs = getCalcInputs();
   var calc   = runCalc(inputs);
-  var today  = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  var today  = new Date().toISOString().split('T')[0];
 
   var bid = {
     projectName:          pName,
@@ -1575,26 +914,20 @@ function saveBid() {
   var docRef = db.collection('users').doc(currentUser.uid).collection('bids').doc();
   docRef.set(bid)
     .then(function() {
-      // Insert at front (desc by date)
       bids.unshift(Object.assign({ id: docRef.id }, bid));
 
-      // First-save billable rate default
       if (billableRateDefault == null) {
         billableRateDefault = rate;
         saveSettings(null);
       }
 
-      // Add new rep if needed
       if (rep && salesReps.indexOf(rep) === -1) {
         salesReps.push(rep);
         salesReps.sort(function(a,b){ return a.localeCompare(b); });
         saveSettings(null);
       }
 
-      // Re-render dashboard filter options
       rebuildFilterRepOptions();
-
-      // Reset + flash success
       resetCalculator();
       flashSaveBtn();
       renderDashboard();
@@ -1641,7 +974,6 @@ function getFilteredBids() {
 }
 
 function getMetricBids() {
-  // Same as getFilteredBids but always includes completed rows for avg calculations
   var fRep  = document.getElementById('filterRep').value;
   var fMix  = document.getElementById('filterLaborMix').value;
   var fEff  = document.getElementById('filterEfficiency').value;
@@ -1660,10 +992,8 @@ function getMetricBids() {
 
 function getHighlightedIds(filteredBids, metricBids) {
   if (!highlightEnabled) return { top: [], bottom: [] };
-  // Threshold check uses metricBids (includes completed) so completed rows count toward 12
   var allWithEff = metricBids.filter(function(b) { return b.installEfficiency != null; });
   if (allWithEff.length < 12) return { top: [], bottom: [] };
-  // Ranking applies only to visible (filtered) rows
   var visibleWithEff = filteredBids.filter(function(b) { return b.installEfficiency != null; });
   var sorted = visibleWithEff.slice().sort(function(a,b) { return b.installEfficiency - a.installEfficiency; });
   return {
@@ -1678,7 +1008,6 @@ function renderDashboard() {
   var highlighted = getHighlightedIds(filtered, metricBids);
   var showNum     = bids.some(function(b){ return b.number && b.number.trim() !== ''; });
 
-  // Weighted avg Install Efficiency = Σ Proposed Install Hrs ÷ Σ Actual Install Hrs
   var sumProposed = 0, sumActual = 0, effCount = 0;
   metricBids.forEach(function(b) {
     if (b.actualInstallHours != null && b.proposedInstallHours != null) {
@@ -1689,7 +1018,6 @@ function renderDashboard() {
   });
   var avgEff = (effCount > 0 && sumActual > 0) ? sumProposed / sumActual : null;
 
-  // Weighted avg Actual Labor Mix = Σ Labor $ ÷ Σ (Equip $ + Parts $ + Labor $)
   var sumLabor = 0, sumTotal = 0, mixCount = 0;
   metricBids.forEach(function(b) {
     if (b.laborForProposal != null) {
@@ -1723,7 +1051,6 @@ function renderDashboard() {
   tableEl.style.display = 'table';
   emptyEl.style.display = 'none';
 
-  // Header
   var hHTML = '<tr>';
   hHTML += '<th>Project Name</th>';
   if (showNum) hHTML += '<th>Number</th>';
@@ -1743,7 +1070,6 @@ function renderDashboard() {
   hHTML += '</tr>';
   document.getElementById('dashHead').innerHTML = hHTML;
 
-  // Rows
   var bHTML = '';
   filtered.forEach(function(bid) {
     var isTop    = highlighted.top.indexOf(bid.id)    !== -1;
@@ -1820,7 +1146,7 @@ function toggleShowCompleted() {
 ───────────────────────────────────────── */
 function handleCompletedChange(id, name, checkbox) {
   if (checkbox.checked) {
-    checkbox.checked = false; // revert until confirmed
+    checkbox.checked = false;
     pendingCompleteId = id;
     document.getElementById('completeProjectLabel').textContent = name;
     openModal('completeModal');
@@ -1972,7 +1298,6 @@ function switchTab(tab) {
 function openModal(id)  { document.getElementById(id).classList.add('show'); }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
-// Close on backdrop click
 document.querySelectorAll('.modal-overlay').forEach(function(ov) {
   ov.addEventListener('click', function(e) {
     if (e.target !== ov) return;
