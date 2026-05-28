@@ -226,7 +226,7 @@
             </tr>
           </table>
 
-          <!-- Actual Labor Mix % — shown only when override is active -->
+          <!-- Actual Labor Mix % -->
           <div class="status-row" id="laborMixStatusRow">
             <span class="status-row-label">Actual Labor Mix %</span>
             <div class="status-row-value">
@@ -865,7 +865,7 @@ function calculate() {
 
   // Labor mix status row
   var statusRow = document.getElementById('laborMixStatusRow');
-  if (r.overrideActive && r.actualLaborMixPct != null) {
+  if (r.actualLaborMixPct != null) {
     setText('o_actualLaborMix', fmtPct(r.actualLaborMixPct, 1));
     document.getElementById('o_laborMixBadge').innerHTML = badgeHTML(r.laborMixSt);
     statusRow.style.display = 'flex';
