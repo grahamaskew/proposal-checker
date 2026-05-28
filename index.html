@@ -299,7 +299,7 @@
               <option value="">All</option>
               <option>Good</option>
               <option>OK</option>
-              <option>Not Good</option>
+              <option>Poor</option>
             </select>
           </div>
           <div class="filter-group">
@@ -552,7 +552,7 @@ function laborMixStatus(mix, targetMix) {
 function efficiencyStatus(eff) {
   if (eff >= 1.0) return 'Good';
   if (eff >= 0.9) return 'OK';
-  return 'Not Good';
+  return 'Poor';
 }
 
 function badgeHTML(status) {
