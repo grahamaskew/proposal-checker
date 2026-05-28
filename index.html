@@ -794,8 +794,9 @@ function runCalc(i) {
   var laborForProposal  = overrideActive ? i.override : recommendedLabor;
   var proposalTotal         = i.eq + i.parts + recommendedLabor;
   var overrideProposalTotal = overrideActive ? (i.eq + i.parts + i.override) : null;
-  var actualLaborMixPct = totalMaterial > 0 && i.labor > 0
-    ? i.labor / (totalMaterial + i.labor)
+  var laborForMix = overrideActive ? i.override : i.labor;
+  var actualLaborMixPct = totalMaterial > 0 && laborForMix > 0
+    ? laborForMix / (totalMaterial + laborForMix)
     : null;
   var laborMixSt = actualLaborMixPct != null
     ? laborMixStatus(actualLaborMixPct, i.targetMix)
