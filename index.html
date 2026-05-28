@@ -238,14 +238,6 @@
 
       </div><!-- /grid-2 -->
 
-      <!-- Upside Down Warning -->
-      <div class="warning-box" id="upsideDownWarning">
-        <span class="warning-icon">⚠️</span>
-        <div>
-          <strong>Review!</strong> The Target Labor Mix % has been met, but Proposed Install Hours are less than
-          Project Install Hours. Consider increasing the Labor $ for Proposal (Labor $ Override).
-        </div>
-      </div>
 
       <!-- Action Bar -->
       <div class="action-bar">
@@ -830,9 +822,6 @@ function runCalc(i) {
     r.pmHours               = pmDollars  / i.rate;
     r.desHours              = desDollars / i.rate;
     r.proposedInstallHours  = r.installHours; // actual entered Labor $, not recommended target
-    r.upsideDown            = actualLaborMixPct != null &&
-                              (actualLaborMixPct >= i.targetMix) &&
-                              (r.proposedInstallHours < r.availableInstallHours);
   }
 
   return r;
@@ -884,8 +873,6 @@ function calculate() {
     statusRow.style.display = 'none';
   }
 
-  // Upside down warning
-  document.getElementById('upsideDownWarning').style.display = r.upsideDown ? 'flex' : 'none';
 }
 
 function setText(id, val) {
